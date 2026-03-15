@@ -80,6 +80,12 @@ Events can be categorized and filtered by type:
 ### Poster Upload Support
 Club admins can upload event posters (JPEG / PNG). Students can tap a post-it to view the full poster.
 
+### Calendar Integration
+Students can add saved events directly to their personal calendars (e.g., Google Calendar). Event details such as title, location, and time will automatically appear in their calendar to help them keep track of campus activities.
+
+### Map Integration
+Events can be displayed on an interactive campus map. Students can easily view where events are taking place and tap the location to navigate to the venue.
+
 ## Technical Stack & Architecture
 
 **Frontend (Client-Side)**
