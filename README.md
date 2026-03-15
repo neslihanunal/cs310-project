@@ -1,35 +1,121 @@
-# CS310 Mobile Application Project
+# CS310 – MOBILE APPLICATION DEVELOPMENT
 
-## Project Title
-[App Name]
+## Project Title & Description
+**CampusBoard** is a mobile application designed to centralize university club events into a single platform. The app provides students with an interactive dashboard to discover upcoming campus events, while allowing university club PR teams to create and manage event announcements.
 
-## Description
-This project is developed for the CS310 Mobile Application Development course at Sabancı University.
+Instead of searching through social media posts, posters, and emails, students can discover events through a visual digital bulletin board.
 
-The goal of this application is to solve [describe the problem your app addresses].
+## Problem
+Campus communication is often fragmented. Students frequently miss important club events because announcements are scattered across different platforms such as; social media, physical posters, email newsletters, messaging groups. This makes it difficult for students to stay informed about campus life.
 
-## Team Members
-- Neslihan Ünal – ID: XXXXX
-- Member 2 – ID: XXXXX
-- Member 3 – ID: XXXXX
+## Solution
+CampusBoard provides a centralized event dashboard where all university club events are displayed in one place.
 
-## Target Audience
-Describe who will use the application.
+The application separates users into two roles:
+
+**Students**
+- Discover upcoming events
+- Save events
+- Receive reminders
+- Leave reviews after attending events
+
+**Club PR Teams**
+- Create and manage event announcements
+- Upload event posters
+- Reach students directly through the platform
+- Get feedback through reviews
 
 ## Core Features
-- Feature 1
-- Feature 2
-- Feature 3
+
+### Role-Based Authentication
+Users log in and are directed to different interfaces depending on their role:
+- Student Dashboard
+- Club Admin Portal
+
+### Interactive Post-It Dashboard
+Upcoming events are displayed as digital post-it notes on a virtual bulletin board.
+
+Each post-it contains:
+- Event title
+- Date and time
+- Location
+- Hosting club
+
+Students can tap a post-it to view full event details.
+
+### Event Creation System
+Club PR teams can:
+- Create events
+- Edit event information
+- Cancel events (it will be still seen as canceled)
+- Upload posters
+
+### Event Reminder System
+Students can save events and receive notifications before the event begins.
+
+### Review and Comment System
+After events take place, students can:
+- Leave ratings
+- Write comments
+- Provide feedback to clubs
 
 ## Optional Features
-- Feature 4
-- Feature 5
 
-## Platform
-Flutter mobile application.
+### Multi-University Support
+The platform can scale beyond a single university by allowing users to filter events by institution.
 
-## Repository Structure
-lib/ – main Flutter application code  
-android/ – Android platform files  
-ios/ – iOS platform files  
-web/ – Web support
+Example:
+- Sabancı University
+- Koç University
+- Bilkent University
+
+### Event Category Filtering
+Events can be categorized and filtered by type:
+- Academic
+- Social
+- Sports
+- Career
+- Networking
+
+### Poster Upload Support
+Club admins can upload event posters (JPEG / PNG). Students can tap a post-it to view the full poster.
+
+## Technical Stack & Architecture
+
+**Frontend (Client-Side)**
+- **Framework:** Flutter (Cross-platform UI toolkit for rendering native-compiled applications for iOS and Android from a single codebase).
+- **Language:** Dart
+- **State Management:**
+
+**Backend (Serverless Infrastructure)**
+- **Database:** Cloud Firestore (NoSQL document database ensuring real-time data synchronization across user devices for event updates and RSVP tracking).
+- **Authentication:** Firebase Authentication (Secure, token-based authentication handling the Role-Based Access Control between Student and Admin accounts).
+- **Media Storage:** Firebase Cloud Storage (Optimized cloud bucket for hosting, compressing, and serving user-uploaded JPEG/PNG event posters).
+
+**Version Control & Collaboration**
+- **Repository:** GitHub (Utilized for source code hosting, branch management, and collaborative integration).
+
+## Data Structure
+- **User Data:** Authentication credentials, profile details, and role-based access permissions (Admin vs. Student).
+- **Entity Data:** Verified club profiles linked to specific universities.
+- **Event Data:** Content for the post-its, including titles, timestamps, descriptions, locations, and the authoring club ID.
+- **Engagement Data:** User RSVP lists, stored reminders, and associated user reviews/comments.
+- **File Storage:** Utilizing a cloud storage bucket (like Firebase Storage) to securely handle, compress, and serve uploaded JPEG/PNG poster assets.
+
+
+## Unique Selling Point
+Unlike generic list-based calendar apps or cluttered social media platforms, CampusBoard provides a dedicated set of creation tools for clubs and a dedicated discovery feed for students. The unique, visual "post-it note" UI cuts out unrelated digital noise, making event discovery intuitive and aesthetically engaging for the university demographic.
+
+## Potential Challenges
+- UI performance when many events are displayed
+- Secure role-based access control
+- Real-time synchronization of event updates
+- Image optimization for poster uploads
+
+## Team Members
+- Emir Mirza – role
+- Erkan Ulaş Tepe – role
+- Mirhat Harıkcı – role
+- Murat Çankaya – role
+- Neslihan Ünal – role
+- Sıla Kara – role
