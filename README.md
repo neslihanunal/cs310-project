@@ -125,4 +125,4 @@ Unlike generic list-based calendar apps or cluttered social media platforms, Cam
 - Murat Çankaya – Project Coordinator
 - Neslihan Ünal – Documentation & Submission Lead
 - Sıla Kara – Integration & Repository Lead
-- 
+
