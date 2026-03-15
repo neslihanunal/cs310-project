@@ -119,9 +119,10 @@ Unlike generic list-based calendar apps or cluttered social media platforms, Cam
 - Image optimization for poster uploads
 
 ## Team Members
-- Emir Mirza – role
-- Erkan Ulaş Tepe – role
-- Mirhat Harıkcı – role
-- Murat Çankaya – role
-- Neslihan Ünal – role
-- Sıla Kara – role
+- Emir Mirza – Presentation & Communication Lead
+- Erkan Ulaş Tepe – Integration & Repository Lead
+- Mirhat Harıkcı – Testing & Quality Assurance Lead
+- Murat Çankaya – Project Coordinator
+- Neslihan Ünal – Documentation & Submission Lead
+- Sıla Kara – Integration & Repository Lead
+- 
