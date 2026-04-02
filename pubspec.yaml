@@ -87,3 +87,18 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+flutter:
+  uses-material-design: true
+
+  # To add assets to your application, add an assets section:
+  assets:
+    - assets/images/
+
+  # To add custom fonts to your application, add a fonts section:
+  fonts:
+    - family: PlayfairDisplay
+      fonts:
+        - asset: assets/fonts/PlayfairDisplay-Regular.ttf
+        - asset: assets/fonts/PlayfairDisplay-Bold.ttf
+          weight: 700
