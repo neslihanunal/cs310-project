@@ -60,7 +60,7 @@ class WelcomeScreen extends StatelessWidget {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         elevation: 0,
                       ),
-                      child: Text('Continue with Sabancı Email', style: AppTextStyles.body(14, color: AppColors.bg, weight: FontWeight.w600)),
+                      child: Text('Continue to Sign In', style: AppTextStyles.body(14, color: AppColors.bg, weight: FontWeight.w600)),
                     ),
                   ),
                   const SizedBox(height: 10),
