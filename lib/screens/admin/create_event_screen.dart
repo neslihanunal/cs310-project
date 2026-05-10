@@ -1,30 +1,80 @@
 import 'package:flutter/material.dart';
-import '../../utils/app_colors.dart';
-import '../../utils/text_styles.dart';
-import '../../utils/dummy_data.dart';
-import '../../widgets/custom_text_field.dart';
-import '../../app_state.dart';
+import 'package:provider/provider.dart';
+
 import '../../models/event_model.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/event_provider.dart';
+import '../../utils/app_colors.dart';
+import '../../utils/dummy_data.dart';
 import '../../utils/routes.dart';
+import '../../utils/text_styles.dart';
+import '../../widgets/custom_text_field.dart';
 
 class CreateEventScreen extends StatefulWidget {
   const CreateEventScreen({super.key});
+
   @override
   State<CreateEventScreen> createState() => _CreateEventScreenState();
 }
 
-extension _StringNullX on String {
-  String? ifEmptyToNull() => trim().isEmpty ? null : this;
-}
-
 class _CreateEventScreenState extends State<CreateEventScreen> {
-  final _titleCtrl = TextEditingController();
-  final _descCtrl = TextEditingController();
-  final _dateCtrl = TextEditingController();
-  final _floorCtrl = TextEditingController();
-  final _roomCtrl = TextEditingController();
+  final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();
+  final TextEditingController _dateController = TextEditingController();
+  final TextEditingController _floorController = TextEditingController();
+  final TextEditingController _roomController = TextEditingController();
 
-  void _confirmDiscard() async {
+  String _selectedCategory = 'Academic';
+  String? _selectedLocation;
+  TimeOfDay _selectedTime = const TimeOfDay(hour: 19, minute: 0);
+
+  String _titleError = '';
+  String _locationError = '';
+  String _dateError = '';
+  bool _initialized = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_initialized) {
+      return;
+    }
+
+    final eventProvider = context.read<EventProvider>();
+    final edit = eventProvider.editingEvent;
+    if (edit != null) {
+      _titleController.text = edit.title;
+      _selectedLocation = findCampusLocation(edit.loc)?.label ??
+          (kCampusLocations.contains(edit.loc) ? edit.loc : null);
+      _descriptionController.text = edit.desc;
+      _dateController.text = edit.date;
+      _floorController.text = edit.floor == '—' ? '' : edit.floor;
+      _roomController.text = edit.room == '—' ? '' : edit.room;
+      final timeParts = edit.time.split(':');
+      if (timeParts.length == 2) {
+        final hour = int.tryParse(timeParts[0]);
+        final minute = int.tryParse(timeParts[1]);
+        if (hour != null && minute != null) {
+          _selectedTime = TimeOfDay(hour: hour, minute: minute);
+        }
+      }
+      _selectedCategory = edit.cat;
+    }
+
+    _initialized = true;
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _dateController.dispose();
+    _floorController.dispose();
+    _roomController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _confirmDiscard() async {
     final shouldLeave = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -32,94 +82,48 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         title: Text('Discard event?', style: AppTextStyles.heading(16)),
         content: Text(
-            'Your unsaved changes will be lost. Are you sure you want to go back?',
-            style: AppTextStyles.body(12, color: AppColors.textSec)),
+          'Your unsaved changes will be lost. Are you sure you want to go back?',
+          style: AppTextStyles.body(12, color: AppColors.textSec),
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Keep Editing')),
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Keep Editing'),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: Text('Discard',
-                  style: TextStyle(
-                      color: AppColors.danger, fontWeight: FontWeight.w600))),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(
+              'Discard',
+              style: TextStyle(
+                color: AppColors.danger,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
         ],
       ),
     );
+
     if (shouldLeave == true && mounted) {
       _goToAdminHome();
     }
   }
 
   void _goToAdminHome() {
-    if (!mounted) return;
-    final state = AppStateProvider.of(context);
-    state.setEditingEvent(null);
-    state.setAdminDashboardTab('my');
+    final eventProvider = context.read<EventProvider>();
+    final authProvider = context.read<AuthProvider>();
+    eventProvider.setEditingEvent(null);
+    authProvider.updatePreferences(lastSelectedTab: 'my');
     Navigator.pushNamedAndRemoveUntil(
-        context, AppRoutes.dashboard, (route) => false);
-  }
-
-  String _selCat = 'Academic';
-  String? _selectedLocation;
-  TimeOfDay _selectedTime = const TimeOfDay(hour: 19, minute: 0);
-
-  // Validation errors
-  String _titleErr = '';
-  String _locErr = '';
-  String _dateErr = '';
-
-  bool _initialized = false;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (!_initialized) {
-      final state = AppStateProvider.of(context);
-      final edit = state.editingEvent;
-      if (edit != null) {
-        _titleCtrl.text = edit.title;
-        _selectedLocation = kCampusLocations.contains(edit.loc)
-            ? edit.loc
-            : kCampusLocationDetails.entries
-                .firstWhere(
-                  (entry) => entry.value['label'] == edit.loc,
-                  orElse: () => const MapEntry('', {}),
-                )
-                .key
-                .ifEmptyToNull();
-        _descCtrl.text = edit.desc;
-        _dateCtrl.text = edit.date;
-        _floorCtrl.text = edit.floor == '—' ? '' : edit.floor;
-        _roomCtrl.text = edit.room == '—' ? '' : edit.room;
-        final timeParts = edit.time.split(':');
-        if (timeParts.length == 2) {
-          final h = int.tryParse(timeParts[0]);
-          final m = int.tryParse(timeParts[1]);
-          if (h != null && m != null) {
-            _selectedTime = TimeOfDay(hour: h, minute: m);
-          }
-        }
-        _selCat = edit.cat;
-      }
-      _initialized = true;
-    }
-  }
-
-  @override
-  void dispose() {
-    _titleCtrl.dispose();
-    _descCtrl.dispose();
-    _dateCtrl.dispose();
-    _floorCtrl.dispose();
-    _roomCtrl.dispose();
-    super.dispose();
+      context,
+      AppRoutes.dashboard,
+      (route) => false,
+    );
   }
 
   Future<void> _pickDate() async {
     final now = DateTime.now();
-    final initial =
-        _parseSelectedDate() ?? DateTime(now.year, now.month, now.day);
+    final initial = _parseSelectedDate() ?? DateTime(now.year, now.month, now.day);
     final picked = await showDatePicker(
       context: context,
       initialDate: initial,
@@ -134,17 +138,21 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
               surface: AppColors.surfaceHigh,
               onSurface: AppColors.text,
             ),
-            dialogTheme:
-                DialogThemeData(backgroundColor: AppColors.surfaceHigh),
+            dialogTheme: DialogThemeData(
+              backgroundColor: AppColors.surfaceHigh,
+            ),
           ),
           child: child!,
         );
       },
     );
-    if (picked == null) return;
+
+    if (picked == null) {
+      return;
+    }
     setState(() {
-      _dateCtrl.text = _formatDate(picked);
-      _dateErr = '';
+      _dateController.text = _formatDate(picked);
+      _dateError = '';
     });
   }
 
@@ -172,18 +180,25 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         );
       },
     );
-    if (picked == null) return;
+
+    if (picked == null) {
+      return;
+    }
     setState(() {
       _selectedTime = picked;
-      _dateErr = '';
+      _dateError = '';
     });
   }
 
   DateTime? _parseSelectedDate() {
-    final value = _dateCtrl.text.trim();
-    if (value.isEmpty) return null;
+    final value = _dateController.text.trim();
+    if (value.isEmpty) {
+      return null;
+    }
     final parts = value.split(' ');
-    if (parts.length < 2) return null;
+    if (parts.length < 2) {
+      return null;
+    }
     const months = {
       'Jan': 1,
       'Feb': 2,
@@ -200,7 +215,9 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     };
     final month = months[parts[0]];
     final day = int.tryParse(parts[1]);
-    if (month == null || day == null) return null;
+    if (month == null || day == null) {
+      return null;
+    }
     final now = DateTime.now();
     return DateTime(now.year, month, day);
   }
@@ -218,7 +235,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       'Sep',
       'Oct',
       'Nov',
-      'Dec'
+      'Dec',
     ];
     return '${months[date.month - 1]} ${date.day}';
   }
@@ -230,40 +247,44 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   }
 
   bool _validate() {
-    bool ok = true;
+    final eventProvider = context.read<EventProvider>();
     final selectedDate = _parseSelectedDate();
-    final state = AppStateProvider.of(context);
-    final today = state.referenceDate;
+    final today = eventProvider.referenceDate;
+
     setState(() {
-      _titleErr =
-          _titleCtrl.text.trim().isEmpty ? 'Event title is required.' : '';
-      _locErr = (_selectedLocation == null || _selectedLocation!.trim().isEmpty)
-          ? 'Location is required.'
+      _titleError = _titleController.text.trim().isEmpty
+          ? 'Event title is required.'
           : '';
-      if (_dateCtrl.text.trim().isEmpty) {
-        _dateErr = 'Date is required.';
+      _locationError =
+          (_selectedLocation == null || _selectedLocation!.trim().isEmpty)
+              ? 'Location is required.'
+              : '';
+      if (_dateController.text.trim().isEmpty) {
+        _dateError = 'Date is required.';
       } else if (selectedDate == null) {
-        _dateErr = 'Choose a valid date.';
+        _dateError = 'Choose a valid date.';
       } else if (selectedDate.isBefore(today)) {
-        _dateErr = 'Past dates are not allowed.';
+        _dateError = 'Past dates are not allowed.';
       } else {
-        _dateErr = '';
+        _dateError = '';
       }
     });
-    if (_titleErr.isNotEmpty || _locErr.isNotEmpty || _dateErr.isNotEmpty) {
-      ok = false;
-    }
-    return ok;
+
+    return _titleError.isEmpty &&
+        _locationError.isEmpty &&
+        _dateError.isEmpty;
   }
 
-  void _publish() {
-    if (!_validate()) return;
-    final state = AppStateProvider.of(context);
-    final edit = state.editingEvent;
-    final isEdit = edit != null;
+  Future<void> _publish() async {
+    if (!_validate()) {
+      return;
+    }
 
-    final String date = _dateCtrl.text.trim();
-    final String time = _formatTime(_selectedTime);
+    final authProvider = context.read<AuthProvider>();
+    final eventProvider = context.read<EventProvider>();
+    final edit = eventProvider.editingEvent;
+    final isEdit = edit != null;
+    final now = DateTime.now();
 
     final selectedLocation = _selectedLocation!.trim();
     final locationDetails = kCampusLocationDetails[selectedLocation] ??
@@ -273,60 +294,84 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
           'room': 'Main Hall',
           'label': 'Campus',
         };
-    final building = locationDetails['building']!;
-    final floor = _floorCtrl.text.trim().isEmpty ? '—' : _floorCtrl.text.trim();
-    final room = _roomCtrl.text.trim().isEmpty ? '—' : _roomCtrl.text.trim();
-    final locationLabel = locationDetails['label']!;
 
     final event = Event(
-      id: edit?.id ?? DateTime.now().millisecondsSinceEpoch,
-      title: _titleCtrl.text.trim(),
-      club: state.currentClubName,
-      clubId: state.currentClubId,
-      date: date,
-      time: time,
-      loc: locationLabel,
-      cat: _selCat,
-      desc: _descCtrl.text.trim().isEmpty
+      id: edit?.id ?? now.microsecondsSinceEpoch.toString(),
+      title: _titleController.text.trim(),
+      club: authProvider.currentClubName,
+      clubId: authProvider.currentClubId,
+      date: _dateController.text.trim(),
+      time: _formatTime(_selectedTime),
+      loc: locationDetails['label']!,
+      cat: _selectedCategory,
+      desc: _descriptionController.text.trim().isEmpty
           ? 'Event details will be announced soon.'
-          : _descCtrl.text.trim(),
-      rsvp: edit?.rsvp ?? 0,
-      saved: edit?.saved ?? false,
-      building: building,
-      floor: floor,
-      room: room,
+          : _descriptionController.text.trim(),
+      building: locationDetails['building']!,
+      floor: _floorController.text.trim().isEmpty
+          ? '—'
+          : _floorController.text.trim(),
+      room: _roomController.text.trim().isEmpty
+          ? '—'
+          : _roomController.text.trim(),
       posterUrl: edit?.posterUrl,
+      deleted: false,
+      createdBy: edit?.createdBy ?? (authProvider.uid ?? ''),
+      createdByEmail: edit?.createdByEmail ?? (authProvider.email ?? ''),
+      createdAt: edit?.createdAt ?? now,
+      updatedAt: now,
+      savedBy: edit?.savedBy ?? const <String>[],
+      attendingBy: edit?.attendingBy ?? const <String>[],
     );
-    state.addOrUpdateEvent(event);
 
-    showDialog(
+    if (isEdit) {
+      await eventProvider.updateEvent(event);
+    } else {
+      await eventProvider.createEvent(event);
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceHigh,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
                 color: AppColors.successFaded,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.success.withOpacity(0.3))),
-            child: Icon(Icons.check, color: AppColors.success, size: 26),
-          ),
-          const SizedBox(height: 16),
-          Text(isEdit ? 'Changes Saved!' : 'Event Published!',
-              style: AppTextStyles.heading(20)),
-          const SizedBox(height: 8),
-          Text(
-            isEdit
-                ? '"${_titleCtrl.text.trim()}" has been updated and is now live.'
-                : '"${_titleCtrl.text.trim()}" is now live and visible to all students.',
-            textAlign: TextAlign.center,
-            style: AppTextStyles.body(13, color: AppColors.textSec)
-                .copyWith(height: 1.6),
-          ),
-        ]),
+                border: Border.all(
+                  color: AppColors.success.withOpacity(0.3),
+                ),
+              ),
+              child: Icon(Icons.check, color: AppColors.success, size: 26),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              isEdit ? 'Changes Saved!' : 'Event Published!',
+              style: AppTextStyles.heading(20),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isEdit
+                  ? '"${_titleController.text.trim()}" has been updated and is now live.'
+                  : '"${_titleController.text.trim()}" is now live and visible to all students.',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.body(
+                13,
+                color: AppColors.textSec,
+              ).copyWith(height: 1.6),
+            ),
+          ],
+        ),
         actions: [
           Center(
             child: ElevatedButton(
@@ -338,14 +383,22 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                 backgroundColor: AppColors.accent,
                 foregroundColor: AppColors.bg,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
                 elevation: 0,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 28,
+                  vertical: 12,
+                ),
               ),
-              child: Text('Go to Board',
-                  style: AppTextStyles.body(13,
-                      color: AppColors.bg, weight: FontWeight.w600)),
+              child: Text(
+                'Go to Board',
+                style: AppTextStyles.body(
+                  13,
+                  color: AppColors.bg,
+                  weight: FontWeight.w600,
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 8),
@@ -373,13 +426,15 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final state = AppStateProvider.of(context);
-    final isEdit = state.editingEvent != null;
+    final eventProvider = context.watch<EventProvider>();
+    final isEdit = eventProvider.editingEvent != null;
 
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _confirmDiscard();
+        if (!didPop) {
+          _confirmDiscard();
+        }
       },
       child: Scaffold(
         backgroundColor: AppColors.bg,
@@ -388,18 +443,26 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 2, 20, 0),
-                child: Row(children: [
-                  GestureDetector(
-                    onTap: _confirmDiscard,
-                    child: Padding(
+                child: Row(
+                  children: [
+                    GestureDetector(
+                      onTap: _confirmDiscard,
+                      child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: Icon(Icons.arrow_back,
-                            color: AppColors.textSec, size: 16)),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(isEdit ? 'Edit Event' : 'New Event',
-                      style: AppTextStyles.heading(17)),
-                ]),
+                        child: Icon(
+                          Icons.arrow_back,
+                          color: AppColors.textSec,
+                          size: 16,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      isEdit ? 'Edit Event' : 'New Event',
+                      style: AppTextStyles.heading(17),
+                    ),
+                  ],
+                ),
               ),
               Expanded(
                 child: SingleChildScrollView(
@@ -407,87 +470,104 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Poster upload placeholder (asset image)
                       Container(
                         width: double.infinity,
                         height: 96,
                         decoration: BoxDecoration(
-                            color: AppColors.surfaceAlt,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                                color: AppColors.border,
-                                style: BorderStyle.solid)),
+                          color: AppColors.surfaceAlt,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: AppColors.border),
+                        ),
                         child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.image_outlined,
-                                  color: AppColors.textDim, size: 22),
-                              const SizedBox(height: 6),
-                              Text('Upload event poster',
-                                  style: AppTextStyles.caption(size: 11)),
-                              Text('PNG, JPG up to 10MB',
-                                  style: AppTextStyles.caption(
-                                      size: 10, color: AppColors.textMuted)),
-                            ]),
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.image_outlined,
+                              color: AppColors.textDim,
+                              size: 22,
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Upload event poster',
+                              style: AppTextStyles.caption(size: 11),
+                            ),
+                            Text(
+                              'PNG, JPG up to 10MB',
+                              style: AppTextStyles.caption(
+                                size: 10,
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 16),
-                      // Title
                       CustomTextField(
-                          label: 'Event Title',
-                          placeholder: 'e.g. Spring Hackathon 2026',
-                          controller: _titleCtrl,
-                          errorText: _titleErr.isEmpty ? null : _titleErr,
-                          onChanged: (_) => setState(() => _titleErr = '')),
+                        label: 'Event Title',
+                        placeholder: 'e.g. Spring Hackathon 2026',
+                        controller: _titleController,
+                        errorText:
+                            _titleError.isEmpty ? null : _titleError,
+                        onChanged: (_) => setState(() => _titleError = ''),
+                      ),
                       const SizedBox(height: 12),
-                      // Category
                       Text('CATEGORY', style: AppTextStyles.label()),
                       const SizedBox(height: 6),
                       Wrap(
                         spacing: 5,
                         runSpacing: 5,
                         children:
-                            kCategories.where((c) => c != 'All').map((cat) {
-                          final act = _selCat == cat;
+                            kCategories.where((category) => category != 'All').map((category) {
+                          final isActive = _selectedCategory == category;
                           return GestureDetector(
-                            onTap: () => setState(() => _selCat = cat),
+                            onTap: () => setState(() => _selectedCategory = category),
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 150),
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 5),
+                                horizontal: 10,
+                                vertical: 5,
+                              ),
                               decoration: BoxDecoration(
-                                color: act
+                                color: isActive
                                     ? AppColors.accentFaded
                                     : AppColors.surfaceAlt,
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(
-                                    color: act
-                                        ? AppColors.accent.withOpacity(0.5)
-                                        : AppColors.border),
+                                  color: isActive
+                                      ? AppColors.accent.withOpacity(0.5)
+                                      : AppColors.border,
+                                ),
                               ),
                               child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(_catIcon(cat),
-                                        size: 11,
-                                        color: act
-                                            ? AppColors.accent
-                                            : AppColors.textDim),
-                                    const SizedBox(width: 4),
-                                    Text(cat,
-                                        style: AppTextStyles.body(11,
-                                            color: act
-                                                ? AppColors.accent
-                                                : AppColors.textSec,
-                                            weight: act
-                                                ? FontWeight.w500
-                                                : FontWeight.w400)),
-                                  ]),
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    _catIcon(category),
+                                    size: 11,
+                                    color: isActive
+                                        ? AppColors.accent
+                                        : AppColors.textDim,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    category,
+                                    style: AppTextStyles.body(
+                                      11,
+                                      color: isActive
+                                          ? AppColors.accent
+                                          : AppColors.textSec,
+                                      weight: isActive
+                                          ? FontWeight.w500
+                                          : FontWeight.w400,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           );
                         }).toList(),
                       ),
                       const SizedBox(height: 12),
-                      // Date and Time
                       Text('DATE', style: AppTextStyles.label()),
                       const SizedBox(height: 5),
                       GestureDetector(
@@ -495,48 +575,50 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                         child: Container(
                           width: double.infinity,
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 12),
+                            horizontal: 12,
+                            vertical: 12,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.surfaceAlt,
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
-                              color: _dateErr.isEmpty
+                              color: _dateError.isEmpty
                                   ? AppColors.border
                                   : AppColors.danger.withOpacity(0.55),
                             ),
                           ),
                           child: Row(
                             children: [
-                              Icon(Icons.calendar_today_outlined,
-                                  color: AppColors.accent, size: 14),
+                              Icon(
+                                Icons.calendar_today_outlined,
+                                color: AppColors.accent,
+                                size: 14,
+                              ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  _dateCtrl.text.trim().isEmpty
+                                  _dateController.text.trim().isEmpty
                                       ? 'Choose a date'
-                                      : _dateCtrl.text.trim(),
+                                      : _dateController.text.trim(),
                                   style: AppTextStyles.body(
                                     12,
-                                    color: _dateCtrl.text.trim().isEmpty
-                                        ? AppColors.textMuted
+                                    color: _dateController.text.trim().isEmpty
+                                        ? AppColors.textDim
                                         : AppColors.text,
                                   ),
                                 ),
                               ),
-                              Icon(Icons.keyboard_arrow_down_rounded,
-                                  color: AppColors.textSec, size: 18),
                             ],
                           ),
                         ),
                       ),
-                      if (_dateErr.isNotEmpty) ...[
+                      if (_dateError.isNotEmpty) ...[
                         const SizedBox(height: 6),
-                        Padding(
-                          padding: const EdgeInsets.only(left: 4),
-                          child: Text(
-                            _dateErr,
-                            style: TextStyle(
-                                color: AppColors.danger, fontSize: 10),
+                        Text(
+                          _dateError,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.danger,
                           ),
                         ),
                       ],
@@ -548,7 +630,9 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                         child: Container(
                           width: double.infinity,
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 12),
+                            horizontal: 12,
+                            vertical: 12,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.surfaceAlt,
                             borderRadius: BorderRadius.circular(8),
@@ -556,149 +640,126 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                           ),
                           child: Row(
                             children: [
-                              Icon(Icons.access_time_outlined,
-                                  color: AppColors.accent, size: 14),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  _formatTime(_selectedTime),
-                                  style: AppTextStyles.body(12,
-                                      color: AppColors.text),
-                                ),
+                              Icon(
+                                Icons.access_time_outlined,
+                                color: AppColors.accent,
+                                size: 14,
                               ),
-                              Icon(Icons.keyboard_arrow_down_rounded,
-                                  color: AppColors.textSec, size: 18),
+                              const SizedBox(width: 8),
+                              Text(
+                                _formatTime(_selectedTime),
+                                style: AppTextStyles.body(12),
+                              ),
                             ],
                           ),
                         ),
                       ),
                       const SizedBox(height: 12),
-                      // Location
-                      Text('LOCATION / BUILDING', style: AppTextStyles.label()),
+                      Text('LOCATION', style: AppTextStyles.label()),
                       const SizedBox(height: 5),
-                      DropdownButtonFormField<String>(
-                        value: _selectedLocation,
-                        isExpanded: true,
-                        dropdownColor: AppColors.surfaceHigh,
-                        icon: Icon(Icons.keyboard_arrow_down_rounded,
-                            color: AppColors.textSec, size: 18),
-                        decoration: InputDecoration(
-                          prefixIcon: Icon(Icons.location_on_outlined,
-                              color: AppColors.accent, size: 14),
-                          hintText: 'Select campus location',
-                          hintStyle: AppTextStyles.body(12,
-                              color: AppColors.textMuted),
-                          filled: true,
-                          fillColor: AppColors.surfaceAlt,
-                          errorText: _locErr.isEmpty ? null : _locErr,
-                          errorStyle:
-                              TextStyle(color: AppColors.danger, fontSize: 10),
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 12),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(color: AppColors.border),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(
-                                color: AppColors.accent.withOpacity(0.55)),
-                          ),
-                          errorBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(
-                                color: AppColors.danger.withOpacity(0.55)),
-                          ),
-                          focusedErrorBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(
-                                color: AppColors.danger.withOpacity(0.7)),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceAlt,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: _locationError.isEmpty
+                                ? AppColors.border
+                                : AppColors.danger.withOpacity(0.55),
                           ),
                         ),
-                        style: AppTextStyles.body(12, color: AppColors.text),
-                        items: kCampusLocations
-                            .map(
-                              (location) => DropdownMenuItem<String>(
-                                value: location,
-                                child: Text(location,
-                                    overflow: TextOverflow.ellipsis),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _selectedLocation,
+                            isExpanded: true,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            dropdownColor: AppColors.surfaceHigh,
+                            hint: Text(
+                              'Choose a campus location',
+                              style: AppTextStyles.body(
+                                12,
+                                color: AppColors.textDim,
                               ),
-                            )
-                            .toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedLocation = value;
-                            _locErr = '';
-                          });
-                        },
+                            ),
+                            items: kCampusLocations.map((location) {
+                              return DropdownMenuItem<String>(
+                                value: location,
+                                child: Text(
+                                  location,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppTextStyles.body(12),
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedLocation = value;
+                                _locationError = '';
+                              });
+                            },
+                          ),
+                        ),
                       ),
+                      if (_locationError.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          _locationError,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.danger,
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 12),
                       Row(
                         children: [
                           Expanded(
                             child: CustomTextField(
                               label: 'Floor',
-                              placeholder: 'Optional, e.g. 2',
-                              controller: _floorCtrl,
+                              placeholder: 'Optional',
+                              controller: _floorController,
                             ),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: CustomTextField(
                               label: 'Room',
-                              placeholder: 'Optional, e.g. A204',
-                              controller: _roomCtrl,
+                              placeholder: 'Optional',
+                              controller: _roomController,
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 12),
-                      // Description
-                      Text('DESCRIPTION', style: AppTextStyles.label()),
-                      const SizedBox(height: 5),
                       CustomTextField(
-                          placeholder: 'Describe your event…',
-                          controller: _descCtrl,
-                          maxLines: 4),
-                      const SizedBox(height: 16),
-                      Row(children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: _confirmDiscard,
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.textSec,
-                              side: BorderSide(color: AppColors.border),
-                              padding: const EdgeInsets.symmetric(vertical: 13),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8)),
+                        label: 'Description',
+                        placeholder: 'Tell students what this event is about',
+                        controller: _descriptionController,
+                        maxLines: 5,
+                      ),
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _publish,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.accent,
+                            foregroundColor: AppColors.bg,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
                             ),
-                            child: Text('Discard',
-                                style: AppTextStyles.body(13,
-                                    color: AppColors.textSec)),
+                            elevation: 0,
+                          ),
+                          child: Text(
+                            isEdit ? 'Save Changes' : 'Publish Event',
+                            style: AppTextStyles.body(
+                              14,
+                              color: AppColors.bg,
+                              weight: FontWeight.w600,
+                            ),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          flex: 2,
-                          child: ElevatedButton(
-                            onPressed: _publish,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.accent,
-                              foregroundColor: AppColors.bg,
-                              padding: const EdgeInsets.symmetric(vertical: 13),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8)),
-                              elevation: 0,
-                            ),
-                            child: Text(
-                                isEdit ? 'Save Changes' : 'Publish Event',
-                                style: AppTextStyles.body(13,
-                                    color: AppColors.bg,
-                                    weight: FontWeight.w600)),
-                          ),
-                        ),
-                      ]),
-                      const SizedBox(height: 16),
+                      ),
                     ],
                   ),
                 ),
