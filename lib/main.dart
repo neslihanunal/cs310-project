@@ -1,122 +1,303 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import 'app_state.dart';
+import 'utils/routes.dart';
+import 'models/user_model.dart';
+
+// Screens - Auth
+import 'screens/auth/splash_screen.dart';
+import 'screens/auth/welcome_screen.dart';
+import 'screens/auth/login_screen.dart';
+import 'screens/auth/onboarding_screen.dart';
+
+// Screens - Core
+import 'screens/core/dashboard_screen.dart';
+import 'screens/core/event_detail_screen.dart';
+import 'screens/core/my_events_screen.dart';
+import 'screens/core/map_screen.dart';
+import 'screens/core/calendar_screen.dart';
+
+import 'screens/admin/create_event_screen.dart';
+
+// Screens - Settings
+import 'screens/settings/settings_screen.dart';
+import 'screens/settings/profile_screen.dart';
+import 'screens/settings/notifications_screen.dart';
+import 'screens/settings/preferences_screen.dart';
+import 'screens/settings/privacy_screen.dart';
+import 'screens/settings/faq_screen.dart';
+import 'screens/settings/feedback_screen.dart';
+import 'screens/settings/about_screen.dart';
 
 void main() {
-  runApp(const MyApp());
+  WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+    DeviceOrientation.landscapeLeft,
+    DeviceOrientation.landscapeRight,
+  ]);
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.light,
+  ));
+  runApp(const CampusBoardApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class CampusBoardApp extends StatefulWidget {
+  const CampusBoardApp({super.key});
 
-  // This widget is the root of your application.
+  @override
+  State<CampusBoardApp> createState() => _CampusBoardAppState();
+}
+
+class _CampusBoardAppState extends State<CampusBoardApp> {
+  final _appState = AppState();
+
+  @override
+  void dispose() {
+    _appState.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+    return AppStateProvider(
+      state: _appState,
+      child: MaterialApp(
+        title: 'CampusBoard',
+        debugShowCheckedModeBanner: false,
+        theme: _buildTheme(),
+
+        // ── Named Routes (requirement) ──────────────────────────
+        initialRoute: AppRoutes.splash,
+        onGenerateRoute: (settings) {
+          switch (settings.name) {
+            // Auth
+            case AppRoutes.splash:
+              return _fade(const SplashScreen(), settings);
+
+            case AppRoutes.welcome:
+              return _fade(const WelcomeScreen(), settings);
+
+            case AppRoutes.login:
+              return _slide(const LoginScreen(), settings);
+
+            case AppRoutes.onboarding:
+              // Receives: { email: String, seed: User }
+              return _slide(const OnboardingScreen(), settings);
+
+            // Dashboard — receives User on first push from onboarding
+            case AppRoutes.dashboard:
+              return _buildDashboardRoute(settings);
+
+            case AppRoutes.eventDetail:
+              return _slide(const EventDetailScreen(), settings);
+
+            case AppRoutes.myEvents:
+              return _fade(const MyEventsScreen(), settings);
+
+            case AppRoutes.map:
+              return _fade(const MapScreen(), settings);
+
+            case AppRoutes.calendar:
+              return _fade(const CalendarScreen(), settings);
+
+            // Admin
+            case AppRoutes.createEvent:
+              return _fade(const CreateEventScreen(), settings);
+
+            // Settings
+            case AppRoutes.settings:
+              return _fade(const SettingsScreen(), settings);
+
+            case AppRoutes.profile:
+              return _slide(const ProfileScreen(), settings);
+
+            case AppRoutes.notifications:
+              return _slide(const NotificationsScreen(), settings);
+
+            case AppRoutes.eventPrefs:
+              return _slide(const PreferencesScreen(), settings);
+
+            case AppRoutes.privacy:
+              return _slide(const PrivacyScreen(), settings);
+
+            case AppRoutes.faq:
+              return _slide(const FaqScreen(), settings);
+
+            case AppRoutes.feedback:
+              return _slide(const FeedbackScreen(), settings);
+
+            case AppRoutes.about:
+              return _slide(const AboutScreen(), settings);
+
+            default:
+              return _fade(const WelcomeScreen(), settings);
+          }
+        },
+
+        // Intercept navigations that carry a User argument (after onboarding)
+        navigatorObservers: [_AppStateObserver(_appState)],
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
     );
   }
-}
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+  // ── Route builder helpers ────────────────────────────────────
 
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+  Route _buildDashboardRoute(RouteSettings settings) {
+    // If onboarding passes user data, set it before showing the dashboard
+    final arg = settings.arguments;
+    if (arg is Map<String, dynamic>) {
+      final user = arg['user'] as User?;
+      final email = arg['email'] as String?;
+      if (user != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _appState.setAccount(user, email: email);
+        });
+      }
+    } else if (arg is User) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _appState.setAccount(arg);
+      });
+    }
+    return _fade(const DashboardScreen(), settings);
   }
 
-  @override
-  Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+  PageRoute _fade(Widget page, RouteSettings settings) => PageRouteBuilder(
+        settings: settings,
+        pageBuilder: (_, __, ___) => page,
+        transitionsBuilder: (_, anim, __, child) =>
+            FadeTransition(opacity: anim, child: child),
+        transitionDuration: const Duration(milliseconds: 250),
+      );
+
+  PageRoute _slide(Widget page, RouteSettings settings) => PageRouteBuilder(
+        settings: settings,
+        pageBuilder: (_, __, ___) => page,
+        transitionsBuilder: (_, anim, __, child) => SlideTransition(
+          position: Tween(begin: const Offset(1, 0), end: Offset.zero)
+              .animate(CurvedAnimation(parent: anim, curve: Curves.easeOut)),
+          child: child,
+        ),
+        transitionDuration: const Duration(milliseconds: 280),
+      );
+
+  // ── Theme ────────────────────────────────────────────────────
+
+  ThemeData _buildTheme() {
+    return ThemeData(
+      useMaterial3: true,
+      fontFamily: 'DMSans',
+      colorScheme: const ColorScheme.dark(
+        brightness: Brightness.dark,
+        primary: Color(0xFF7B9FD4),
+        surface: Color(0xFF111318),
+        onSurface: Color(0xFFE8E6E2),
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
-          children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
+      scaffoldBackgroundColor: const Color(0xFF0B0C0F),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Color(0xFF0B0C0F),
+        foregroundColor: Color(0xFFE8E6E2),
+        elevation: 0,
+      ),
+      textTheme: const TextTheme(
+        bodyLarge: TextStyle(fontFamily: 'DMSans', color: Color(0xFFE8E6E2)),
+        bodyMedium: TextStyle(fontFamily: 'DMSans', color: Color(0xFFE8E6E2)),
+        bodySmall: TextStyle(fontFamily: 'DMSans', color: Color(0xFF8A8C96)),
+        titleLarge:
+            TextStyle(fontFamily: 'DMSerifDisplay', color: Color(0xFFE8E6E2)),
+        titleMedium:
+            TextStyle(fontFamily: 'DMSerifDisplay', color: Color(0xFFE8E6E2)),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: const Color(0xFF161820),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Color(0xFF1F2130)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Color(0xFF1F2130)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide:
+              BorderSide(color: const Color(0xFF7B9FD4).withOpacity(0.6)),
+        ),
+        hintStyle:
+            const TextStyle(color: Color(0xFF52545E), fontFamily: 'DMSans'),
+        labelStyle:
+            const TextStyle(color: Color(0xFF8A8C96), fontFamily: 'DMSans'),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF7B9FD4),
+          foregroundColor: const Color(0xFF0B0C0F),
+          elevation: 0,
+          textStyle: const TextStyle(
+              fontFamily: 'DMSans', fontWeight: FontWeight.w600),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: const Color(0xFFE8E6E2),
+          side: const BorderSide(color: Color(0xFF1F2130)),
+          textStyle: const TextStyle(
+              fontFamily: 'DMSans', fontWeight: FontWeight.w500),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: const Color(0xFF1D1F28),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        titleTextStyle: const TextStyle(
+            fontFamily: 'DMSans',
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFFE8E6E2)),
+        contentTextStyle: const TextStyle(
+            fontFamily: 'DMSans',
+            fontSize: 13,
+            color: Color(0xFF8A8C96),
+            height: 1.5),
       ),
     );
+  }
+}
+
+// ── Navigator observer: sets account when dashboard args contain a User ──────
+
+class _AppStateObserver extends NavigatorObserver {
+  final AppState _state;
+  _AppStateObserver(this._state);
+
+  void _handleDashboardArgs(dynamic args) {
+    if (args is Map<String, dynamic>) {
+      final user = args['user'] as User?;
+      final email = args['email'] as String?;
+      if (user != null) _state.setAccount(user, email: email);
+    } else if (args is User) {
+      _state.setAccount(args);
+    }
+  }
+
+  @override
+  void didPush(Route route, Route? previousRoute) {
+    if (route.settings.name == AppRoutes.dashboard) {
+      _handleDashboardArgs(route.settings.arguments);
+    }
+  }
+
+  @override
+  void didReplace({Route? newRoute, Route? oldRoute}) {
+    if (newRoute?.settings.name == AppRoutes.dashboard) {
+      _handleDashboardArgs(newRoute?.settings.arguments);
+    }
   }
 }
