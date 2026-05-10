@@ -1,38 +1,41 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
-import 'app_state.dart';
-import 'utils/routes.dart';
-import 'models/user_model.dart';
-
-// Screens - Auth
-import 'screens/auth/splash_screen.dart';
-import 'screens/auth/welcome_screen.dart';
+import 'firebase_options.dart';
+import 'providers/auth_provider.dart';
+import 'providers/event_provider.dart';
+import 'screens/admin/create_event_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/onboarding_screen.dart';
-
-// Screens - Core
+import 'screens/auth/email_verification_screen.dart';
+import 'screens/auth/register_screen.dart';
+import 'screens/auth/splash_screen.dart';
+import 'screens/auth/welcome_screen.dart';
+import 'screens/core/calendar_screen.dart';
 import 'screens/core/dashboard_screen.dart';
 import 'screens/core/event_detail_screen.dart';
-import 'screens/core/my_events_screen.dart';
 import 'screens/core/map_screen.dart';
-import 'screens/core/calendar_screen.dart';
-
-import 'screens/admin/create_event_screen.dart';
-
-// Screens - Settings
-import 'screens/settings/settings_screen.dart';
-import 'screens/settings/profile_screen.dart';
+import 'screens/core/my_events_screen.dart';
+import 'screens/settings/about_screen.dart';
+import 'screens/settings/faq_screen.dart';
+import 'screens/settings/feedback_screen.dart';
 import 'screens/settings/notifications_screen.dart';
 import 'screens/settings/preferences_screen.dart';
 import 'screens/settings/privacy_screen.dart';
-import 'screens/settings/faq_screen.dart';
-import 'screens/settings/feedback_screen.dart';
-import 'screens/settings/about_screen.dart';
+import 'screens/settings/profile_screen.dart';
+import 'screens/settings/settings_screen.dart';
+import 'services/auth_service.dart';
+import 'services/firestore_service.dart';
+import 'services/local_storage_service.dart';
+import 'utils/routes.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  SystemChrome.setPreferredOrientations([
+  await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
     DeviceOrientation.landscapeLeft,
@@ -42,151 +45,187 @@ void main() {
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,
   ));
-  runApp(const CampusBoardApp());
-}
 
-class CampusBoardApp extends StatefulWidget {
-  const CampusBoardApp({super.key});
+  final localStorageService = await LocalStorageService.create();
+  final firebaseOptions = DefaultFirebaseOptions.currentPlatform;
+  var firebaseEnabled = false;
 
-  @override
-  State<CampusBoardApp> createState() => _CampusBoardAppState();
-}
-
-class _CampusBoardAppState extends State<CampusBoardApp> {
-  final _appState = AppState();
-
-  @override
-  void dispose() {
-    _appState.dispose();
-    super.dispose();
+  if (kIsWeb) {
+    if (firebaseOptions == null) {
+      debugPrint(
+        'CampusBoard Firebase initialization skipped: missing web options.',
+      );
+    } else {
+      try {
+        await Firebase.initializeApp(options: firebaseOptions);
+        firebaseEnabled = true;
+      } catch (error) {
+        debugPrint('CampusBoard Firebase web initialization failed: $error');
+      }
+    }
+  } else if (firebaseOptions != null) {
+    try {
+      await Firebase.initializeApp(options: firebaseOptions);
+      firebaseEnabled = true;
+    } catch (error) {
+      debugPrint('CampusBoard Firebase initialization failed: $error');
+    }
+  } else {
+    try {
+      await Firebase.initializeApp();
+      firebaseEnabled = true;
+    } catch (error) {
+      debugPrint('CampusBoard Firebase initialization skipped: $error');
+    }
   }
+
+  final firestoreService = FirestoreService(
+    localStorage: localStorageService,
+    firebaseEnabled: firebaseEnabled,
+  );
+  final authService = AuthService(
+    firebaseAuth: firebaseEnabled ? firebase_auth.FirebaseAuth.instance : null,
+  );
+
+  runApp(
+    CampusBoardApp(
+      localStorageService: localStorageService,
+      firestoreService: firestoreService,
+      authService: authService,
+      firebaseEnabled: firebaseEnabled,
+    ),
+  );
+}
+
+class CampusBoardApp extends StatelessWidget {
+  const CampusBoardApp({
+    super.key,
+    required this.localStorageService,
+    required this.firestoreService,
+    required this.authService,
+    required this.firebaseEnabled,
+  });
+
+  final LocalStorageService localStorageService;
+  final FirestoreService firestoreService;
+  final AuthService authService;
+  final bool firebaseEnabled;
 
   @override
   Widget build(BuildContext context) {
-    return AppStateProvider(
-      state: _appState,
+    return MultiProvider(
+      providers: [
+        Provider<LocalStorageService>.value(value: localStorageService),
+        Provider<FirestoreService>.value(value: firestoreService),
+        Provider<AuthService>.value(value: authService),
+        Provider<bool>.value(value: firebaseEnabled),
+        ChangeNotifierProvider<AuthProvider>(
+          create: (_) => AuthProvider(
+            authService: authService,
+            firestoreService: firestoreService,
+            localStorageService: localStorageService,
+          ),
+        ),
+        ChangeNotifierProxyProvider<AuthProvider, EventProvider>(
+          create: (_) => EventProvider(firestoreService: firestoreService),
+          update: (_, authProvider, eventProvider) {
+            final provider =
+                eventProvider ?? EventProvider(firestoreService: firestoreService);
+            if (authProvider.status == AuthStatus.authenticated) {
+              Future<void>.microtask(provider.startListening);
+            } else {
+              Future<void>.microtask(provider.stopListeningAndClear);
+            }
+            return provider;
+          },
+        ),
+      ],
       child: MaterialApp(
         title: 'CampusBoard',
         debugShowCheckedModeBanner: false,
         theme: _buildTheme(),
-
-        // ── Named Routes (requirement) ──────────────────────────
         initialRoute: AppRoutes.splash,
         onGenerateRoute: (settings) {
           switch (settings.name) {
-            // Auth
             case AppRoutes.splash:
               return _fade(const SplashScreen(), settings);
-
             case AppRoutes.welcome:
               return _fade(const WelcomeScreen(), settings);
-
             case AppRoutes.login:
               return _slide(const LoginScreen(), settings);
-
+            case AppRoutes.register:
+              return _slide(const RegisterScreen(), settings);
+            case AppRoutes.verifyEmail:
+              return _slide(const EmailVerificationScreen(), settings);
             case AppRoutes.onboarding:
-              // Receives: { email: String, seed: User }
               return _slide(const OnboardingScreen(), settings);
-
-            // Dashboard — receives User on first push from onboarding
             case AppRoutes.dashboard:
-              return _buildDashboardRoute(settings);
-
+              return _fade(const DashboardScreen(), settings);
             case AppRoutes.eventDetail:
               return _slide(const EventDetailScreen(), settings);
-
             case AppRoutes.myEvents:
               return _fade(const MyEventsScreen(), settings);
-
             case AppRoutes.map:
               return _fade(const MapScreen(), settings);
-
             case AppRoutes.calendar:
               return _fade(const CalendarScreen(), settings);
-
-            // Admin
             case AppRoutes.createEvent:
               return _fade(const CreateEventScreen(), settings);
-
-            // Settings
             case AppRoutes.settings:
               return _fade(const SettingsScreen(), settings);
-
             case AppRoutes.profile:
               return _slide(const ProfileScreen(), settings);
-
             case AppRoutes.notifications:
               return _slide(const NotificationsScreen(), settings);
-
             case AppRoutes.eventPrefs:
               return _slide(const PreferencesScreen(), settings);
-
             case AppRoutes.privacy:
               return _slide(const PrivacyScreen(), settings);
-
             case AppRoutes.faq:
               return _slide(const FaqScreen(), settings);
-
             case AppRoutes.feedback:
               return _slide(const FeedbackScreen(), settings);
-
             case AppRoutes.about:
               return _slide(const AboutScreen(), settings);
-
             default:
               return _fade(const WelcomeScreen(), settings);
           }
         },
-
-        // Intercept navigations that carry a User argument (after onboarding)
-        navigatorObservers: [_AppStateObserver(_appState)],
       ),
     );
   }
 
-  // ── Route builder helpers ────────────────────────────────────
-
-  Route _buildDashboardRoute(RouteSettings settings) {
-    // If onboarding passes user data, set it before showing the dashboard
-    final arg = settings.arguments;
-    if (arg is Map<String, dynamic>) {
-      final user = arg['user'] as User?;
-      final email = arg['email'] as String?;
-      if (user != null) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _appState.setAccount(user, email: email);
-        });
-      }
-    } else if (arg is User) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _appState.setAccount(arg);
-      });
-    }
-    return _fade(const DashboardScreen(), settings);
+  static PageRoute<dynamic> _fade(Widget page, RouteSettings settings) {
+    return PageRouteBuilder(
+      settings: settings,
+      pageBuilder: (_, __, ___) => page,
+      transitionsBuilder: (_, animation, __, child) {
+        return FadeTransition(opacity: animation, child: child);
+      },
+      transitionDuration: const Duration(milliseconds: 250),
+    );
   }
 
-  PageRoute _fade(Widget page, RouteSettings settings) => PageRouteBuilder(
-        settings: settings,
-        pageBuilder: (_, __, ___) => page,
-        transitionsBuilder: (_, anim, __, child) =>
-            FadeTransition(opacity: anim, child: child),
-        transitionDuration: const Duration(milliseconds: 250),
-      );
-
-  PageRoute _slide(Widget page, RouteSettings settings) => PageRouteBuilder(
-        settings: settings,
-        pageBuilder: (_, __, ___) => page,
-        transitionsBuilder: (_, anim, __, child) => SlideTransition(
-          position: Tween(begin: const Offset(1, 0), end: Offset.zero)
-              .animate(CurvedAnimation(parent: anim, curve: Curves.easeOut)),
+  static PageRoute<dynamic> _slide(Widget page, RouteSettings settings) {
+    return PageRouteBuilder(
+      settings: settings,
+      pageBuilder: (_, __, ___) => page,
+      transitionsBuilder: (_, animation, __, child) {
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(1, 0),
+            end: Offset.zero,
+          ).animate(
+            CurvedAnimation(parent: animation, curve: Curves.easeOut),
+          ),
           child: child,
-        ),
-        transitionDuration: const Duration(milliseconds: 280),
-      );
+        );
+      },
+      transitionDuration: const Duration(milliseconds: 280),
+    );
+  }
 
-  // ── Theme ────────────────────────────────────────────────────
-
-  ThemeData _buildTheme() {
+  static ThemeData _buildTheme() {
     return ThemeData(
       useMaterial3: true,
       fontFamily: 'DMSans',
@@ -238,9 +277,12 @@ class _CampusBoardAppState extends State<CampusBoardApp> {
           foregroundColor: const Color(0xFF0B0C0F),
           elevation: 0,
           textStyle: const TextStyle(
-              fontFamily: 'DMSans', fontWeight: FontWeight.w600),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            fontFamily: 'DMSans',
+            fontWeight: FontWeight.w600,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -248,56 +290,30 @@ class _CampusBoardAppState extends State<CampusBoardApp> {
           foregroundColor: const Color(0xFFE8E6E2),
           side: const BorderSide(color: Color(0xFF1F2130)),
           textStyle: const TextStyle(
-              fontFamily: 'DMSans', fontWeight: FontWeight.w500),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            fontFamily: 'DMSans',
+            fontWeight: FontWeight.w500,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: const Color(0xFF1D1F28),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         titleTextStyle: const TextStyle(
-            fontFamily: 'DMSans',
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFFE8E6E2)),
+          fontFamily: 'DMSans',
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFFE8E6E2),
+        ),
         contentTextStyle: const TextStyle(
-            fontFamily: 'DMSans',
-            fontSize: 13,
-            color: Color(0xFF8A8C96),
-            height: 1.5),
+          fontFamily: 'DMSans',
+          fontSize: 13,
+          color: Color(0xFF8A8C96),
+          height: 1.5,
+        ),
       ),
     );
-  }
-}
-
-// ── Navigator observer: sets account when dashboard args contain a User ──────
-
-class _AppStateObserver extends NavigatorObserver {
-  final AppState _state;
-  _AppStateObserver(this._state);
-
-  void _handleDashboardArgs(dynamic args) {
-    if (args is Map<String, dynamic>) {
-      final user = args['user'] as User?;
-      final email = args['email'] as String?;
-      if (user != null) _state.setAccount(user, email: email);
-    } else if (args is User) {
-      _state.setAccount(args);
-    }
-  }
-
-  @override
-  void didPush(Route route, Route? previousRoute) {
-    if (route.settings.name == AppRoutes.dashboard) {
-      _handleDashboardArgs(route.settings.arguments);
-    }
-  }
-
-  @override
-  void didReplace({Route? newRoute, Route? oldRoute}) {
-    if (newRoute?.settings.name == AppRoutes.dashboard) {
-      _handleDashboardArgs(newRoute?.settings.arguments);
-    }
   }
 }

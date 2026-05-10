@@ -1,0 +1,192 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function requestUid() {
+      return request.auth.uid;
+    }
+
+    function requestEmail() {
+      return request.auth.token.email;
+    }
+
+    function userDoc(uid) {
+      return get(/databases/$(database)/documents/users/$(uid));
+    }
+
+    function userExists(uid) {
+      return exists(/databases/$(database)/documents/users/$(uid));
+    }
+
+    function isOwnProfile(uid) {
+      return isSignedIn() && requestUid() == uid;
+    }
+
+    /*
+      Firestore rules cannot see the Flutter-side allowlist in AuthProvider,
+      so the approved club/admin emails are duplicated here to prevent users
+      from promoting themselves to admin by editing their own profile.
+    */
+    function isApprovedAdminEmail(email) {
+      return [
+        'artelier@sabanciuniv.edu',
+        'computerclub@sabanciuniv.edu',
+        'subuh.sr@sabanciuniv.edu',
+        'sudance@sabanciuniv.edu',
+        'eik@sabanciuniv.edu',
+        'sr.suec@sabanciuniv.edu',
+        'suwell@sabanciuniv.edu',
+        'suieee@sabanciuniv.edu',
+        'ies@sabanciuniv.edu',
+        'kaisabanci.sr@sabanciuniv.edu',
+        'mun@sabanciuniv.edu',
+        'muzikus@sabanciuniv.edu',
+        'offtownyk@sabanciuniv.edu',
+        'sufirst@sabanciuniv.edu',
+        'suss@sabanciuniv.edu',
+        'sr.suint@sabanciuniv.edu'
+      ].hasAny([email]);
+    }
+
+    function storedRole(uid) {
+      return userDoc(uid).data.role;
+    }
+
+    function isStoredAdmin(uid) {
+      return userExists(uid) && storedRole(uid) == 'admin';
+    }
+
+    function validUserCreate(uid) {
+      return isOwnProfile(uid)
+        && request.resource.data.email == requestEmail()
+        && (
+          (
+            isApprovedAdminEmail(requestEmail())
+            && request.resource.data.role == 'admin'
+          ) || (
+            !isApprovedAdminEmail(requestEmail())
+            && request.resource.data.role == 'student'
+          )
+        );
+    }
+
+    function validUserUpdate(uid) {
+      return isOwnProfile(uid)
+        && request.resource.data.email == resource.data.email
+        && (
+          (
+            resource.data.role == 'admin'
+            && request.resource.data.role == 'admin'
+          ) || (
+            resource.data.role != 'admin'
+            && (
+              (
+                isApprovedAdminEmail(requestEmail())
+                && request.resource.data.role == 'admin'
+              ) || (
+                !isApprovedAdminEmail(requestEmail())
+                && request.resource.data.role == 'student'
+              )
+            )
+          )
+        );
+    }
+
+    function isEventCreator() {
+      return isSignedIn() && resource.data.createdBy == requestUid();
+    }
+
+    function isValidEventCreate() {
+      return isSignedIn()
+        && isStoredAdmin(requestUid())
+        && request.resource.data.createdBy == requestUid()
+        && request.resource.data.createdByEmail == requestEmail()
+        && request.resource.data.deleted == false;
+    }
+
+    function changedKeys() {
+      return request.resource.data.diff(resource.data).changedKeys();
+    }
+
+    function isSingleSelfMembershipToggle(before, after) {
+      return after == before
+        || (
+          after.hasAll(before)
+          && after.size() == before.size() + 1
+          && !(requestUid() in before)
+          && requestUid() in after
+        )
+        || (
+          before.hasAll(after)
+          && before.size() == after.size() + 1
+          && requestUid() in before
+          && !(requestUid() in after)
+        );
+    }
+
+    function isRelationshipOnlyUpdate() {
+      return isSignedIn()
+        && changedKeys().hasOnly(['savedBy', 'attendingBy', 'updatedAt'])
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.createdByEmail == resource.data.createdByEmail
+        && request.resource.data.title == resource.data.title
+        && request.resource.data.club == resource.data.club
+        && request.resource.data.clubId == resource.data.clubId
+        && request.resource.data.date == resource.data.date
+        && request.resource.data.time == resource.data.time
+        && request.resource.data.loc == resource.data.loc
+        && request.resource.data.cat == resource.data.cat
+        && request.resource.data.desc == resource.data.desc
+        && request.resource.data.building == resource.data.building
+        && request.resource.data.floor == resource.data.floor
+        && request.resource.data.room == resource.data.room
+        && request.resource.data.posterUrl == resource.data.posterUrl
+        && request.resource.data.deleted == resource.data.deleted
+        && request.resource.data.createdAt == resource.data.createdAt
+        && isSingleSelfMembershipToggle(
+          resource.data.savedBy,
+          request.resource.data.savedBy
+        )
+        && isSingleSelfMembershipToggle(
+          resource.data.attendingBy,
+          request.resource.data.attendingBy
+        );
+    }
+
+    match /users/{uid} {
+      allow read: if isOwnProfile(uid);
+      allow create: if validUserCreate(uid);
+      allow update: if validUserUpdate(uid);
+      /*
+        Profile deletion is disabled in Step 4 because the app does not expose
+        a delete-account flow, and removing a profile would also bypass the
+        stored-role checks used for admin event creation.
+      */
+      allow delete: if false;
+    }
+
+    match /events/{eventId} {
+      /*
+        Events are readable only to authenticated users and only while they are
+        public/non-deleted. Soft-deleted events stay in Firestore for creator
+        audit/history, but they should not be visible in the app feed.
+      */
+      allow read: if isSignedIn() && resource.data.deleted != true;
+      allow create: if isValidEventCreate();
+
+      /*
+        Event creators can fully manage their own events.
+        Non-creators may only update savedBy / attendingBy for their own
+        RSVP/save relationship, without changing event content. This is not a
+        perfect diff of every possible array mutation pattern, but it restricts
+        non-creators to toggling only their own uid inside those arrays.
+      */
+      allow update: if isEventCreator() || isRelationshipOnlyUpdate();
+      allow delete: if isEventCreator();
+    }
+  }
+}
