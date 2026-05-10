@@ -1,5 +1,28 @@
-import '../models/event_model.dart';
 import '../models/user_model.dart';
+
+class CampusLocationData {
+  const CampusLocationData({
+    required this.id,
+    required this.displayName,
+    required this.building,
+    required this.floor,
+    required this.room,
+    required this.x,
+    required this.y,
+    this.aliases = const <String>[],
+  });
+
+  final int id;
+  final String displayName;
+  final String building;
+  final String floor;
+  final String room;
+  final double x;
+  final double y;
+  final List<String> aliases;
+
+  String get label => '$id · $displayName';
+}
 
 const List<String> kCategories = [
   'All',
@@ -10,213 +33,384 @@ const List<String> kCategories = [
   'Arts'
 ];
 
-const List<String> kCampusLocations = [
-  '1 · Administration Building',
-  '2 · School of Languages',
-  '3 · Sabancı Business School',
-  '4 · Faculty of Engineering and Natural Sciences',
-  '5 · Faculty of Arts and Social Sciences',
-  '6 · Art Studios',
-  '7 · Information Center',
-  '8 · SUNUM',
-  '9 · Main Gate and Security',
-  '10 · University Center - Cafeteria',
-  '11 · Cinema Hall',
-  '12 · Central Plant',
-  '13 · Performing Arts Center (SGM)',
-  '14 · Amphitheater',
-  '15 · President\'s House',
-  '16 · Health Center and Social Services',
-  '17 · Nursery School',
-  '18 · Student Clubs Buildings',
-  '19 · Entrepreneurship and Incubation Center',
-  '20 · Treatment Plant',
-  '21 · Sports Center',
-  '22 · Tennis Court',
-  '23 · Football Field',
-  '24 · Faculty Housing',
-  '25 · Student Dormitories',
+const List<CampusLocationData> kCampusMapLocations = [
+  // Coordinates are normalized against the full 2048x1472 campus_map.jpg
+  // asset, including its title, legend, and footer. They are aligned to the
+  // official numbered location badges shown on that image.
+  CampusLocationData(
+    id: 1,
+    displayName: 'Administration Building',
+    building: 'Administration Building',
+    floor: '1',
+    room: 'Main Hall',
+    x: 0.274,
+    y: 0.551,
+    aliases: ['Rektorlugu Binasi', 'Rektörlük Binası', 'Administration Building'],
+  ),
+  CampusLocationData(
+    id: 2,
+    displayName: 'School of Languages',
+    building: 'School of Languages',
+    floor: '1',
+    room: 'Seminar Hall',
+    x: 0.319,
+    y: 0.547,
+    aliases: ['Diller Okulu', 'School of Languages'],
+  ),
+  CampusLocationData(
+    id: 3,
+    displayName: 'Sabancı Business School',
+    building: 'Sabancı Business School',
+    floor: '1',
+    room: 'Lecture Hall',
+    x: 0.378,
+    y: 0.520,
+    aliases: ['Yonetim Bilimleri Fakultesi', 'Yönetim Bilimleri Fakültesi', 'SBS', 'YBF'],
+  ),
+  CampusLocationData(
+    id: 4,
+    displayName: 'Faculty of Engineering and Natural Sciences',
+    building: 'Faculty of Engineering and Natural Sciences',
+    floor: 'B',
+    room: '3',
+    x: 0.396,
+    y: 0.638,
+    aliases: [
+      'Muhendislik ve Doga Bilimleri Fakultesi',
+      'Mühendislik ve Doğa Bilimleri Fakültesi',
+      'FENS',
+      'MDBF',
+      'Engineering Hall B3',
+      'Faculty of Engineering and Natural Sciences',
+    ],
+  ),
+  CampusLocationData(
+    id: 5,
+    displayName: 'Faculty of Arts and Social Sciences',
+    building: 'Faculty of Arts and Social Sciences',
+    floor: '1',
+    room: 'A1',
+    x: 0.350,
+    y: 0.670,
+    aliases: [
+      'Sanat ve Sosyal Bilimler Fakultesi',
+      'Sanat ve Sosyal Bilimler Fakültesi',
+      'FASS',
+      'SSBF',
+      'Lecture Hall A1',
+      'Faculty of Arts and Social Sciences',
+    ],
+  ),
+  CampusLocationData(
+    id: 6,
+    displayName: 'Art Studios',
+    building: 'Art Studios',
+    floor: '1',
+    room: 'Studio A',
+    x: 0.386,
+    y: 0.754,
+    aliases: ['Sanat Studyolari', 'Sanat Stüdyoları', 'Art Studios'],
+  ),
+  CampusLocationData(
+    id: 7,
+    displayName: 'Information Center',
+    building: 'Information Center',
+    floor: '1',
+    room: 'Seminar Room',
+    x: 0.325,
+    y: 0.690,
+    aliases: [
+      'Bilgi Merkezi',
+      'Information Center',
+      'Library',
+      'Library Room 204',
+    ],
+  ),
+  CampusLocationData(
+    id: 8,
+    displayName: 'SUNUM',
+    building: 'SUNUM',
+    floor: '1',
+    room: 'Conference Room',
+    x: 0.427,
+    y: 0.765,
+    aliases: [
+      'Nanoteknoloji Araştırma ve Uygulama Merkezi',
+      'Nanoteknoloji Arastirma ve Uygulama Merkezi',
+      'SUNUM',
+    ],
+  ),
+  CampusLocationData(
+    id: 9,
+    displayName: 'Main Gate and Security',
+    building: 'Main Gate and Security',
+    floor: 'Outdoor',
+    room: 'Entrance',
+    x: 0.168,
+    y: 0.756,
+    aliases: [
+      'Ana Giriş ve Güvenlik',
+      'Ana Giris ve Guvenlik',
+      'Main Gate and Security',
+      'Main Gate',
+      'Meet at Main Gate',
+    ],
+  ),
+  CampusLocationData(
+    id: 10,
+    displayName: 'University Center - Cafeteria',
+    building: 'University Center',
+    floor: '1',
+    room: 'Cafeteria Hall',
+    x: 0.435,
+    y: 0.596,
+    aliases: [
+      'Üniversite Merkezi - Yemekhane',
+      'Universite Merkezi - Yemekhane',
+      'University Center - Cafeteria',
+      'University Center',
+      'Cafeteria',
+      'UC',
+      'Main Conference Center',
+      'Main Lawn',
+      'Student Center Courtyard',
+    ],
+  ),
+  CampusLocationData(
+    id: 11,
+    displayName: 'Cinema Hall',
+    building: 'Cinema Hall',
+    floor: '1',
+    room: 'Main Hall',
+    x: 0.423,
+    y: 0.525,
+    aliases: ['Sinema Salonu', 'Cinema Hall'],
+  ),
+  CampusLocationData(
+    id: 12,
+    displayName: 'Central Plant',
+    building: 'Central Plant',
+    floor: '1',
+    room: 'Meeting Room',
+    x: 0.483,
+    y: 0.887,
+    aliases: ['Kampus İşletim Merkezi', 'Kampüs İşletim Merkezi', 'Central Plant'],
+  ),
+  CampusLocationData(
+    id: 13,
+    displayName: 'Performing Arts Center (SGM)',
+    building: 'Performing Arts Center (SGM)',
+    floor: '1',
+    room: 'Main Stage',
+    x: 0.227,
+    y: 0.480,
+    aliases: [
+      'Sabanci Gosteri Merkezi',
+      'Sabancı Gösteri Merkezi',
+      'Performing Arts Center',
+      'Performing Arts Center (SGM)',
+      'SGM',
+      'Student Center Auditorium',
+    ],
+  ),
+  CampusLocationData(
+    id: 14,
+    displayName: 'Amphitheater',
+    building: 'Amphitheater',
+    floor: 'Outdoor',
+    room: 'Stage Area',
+    x: 0.404,
+    y: 0.453,
+    aliases: ['Amfitiyatro', 'Amphitheater', 'Central Campus Green'],
+  ),
+  CampusLocationData(
+    id: 15,
+    displayName: 'President\'s House',
+    building: 'President\'s House',
+    floor: '1',
+    room: 'Reception Hall',
+    x: 0.604,
+    y: 0.522,
+    aliases: ['Rektör Konutu', 'Rektor Konutu', 'President\'s House'],
+  ),
+  CampusLocationData(
+    id: 16,
+    displayName: 'Health Center and Social Services',
+    building: 'Health Center and Social Services',
+    floor: '1',
+    room: 'Conference Room',
+    x: 0.567,
+    y: 0.553,
+    aliases: [
+      'Sağlık Merkezi ve Sosyal Hizmetler',
+      'Saglik Merkezi ve Sosyal Hizmetler',
+      'Health Center and Social Services',
+    ],
+  ),
+  CampusLocationData(
+    id: 17,
+    displayName: 'Nursery School',
+    building: 'Nursery School',
+    floor: 'Ground',
+    room: 'Activity Hall',
+    x: 0.507,
+    y: 0.736,
+    aliases: ['Anaokulu', 'Nursery', 'Nursery School'],
+  ),
+  CampusLocationData(
+    id: 18,
+    displayName: 'Student Clubs Buildings',
+    building: 'Student Clubs Buildings',
+    floor: '1',
+    room: 'Event Room',
+    x: 0.458,
+    y: 0.866,
+    aliases: [
+      'Öğrenci Kulüp Binaları',
+      'Ogrenci Kulup Binalari',
+      'Student Clubs Buildings',
+      'Student Clubs',
+    ],
+  ),
+  CampusLocationData(
+    id: 19,
+    displayName: 'Entrepreneurship and Incubation Center',
+    building: 'Entrepreneurship and Incubation Center',
+    floor: '1',
+    room: 'Workshop Hall',
+    x: 0.233,
+    y: 0.301,
+    aliases: [
+      'Girişimcilik ve Kuluçka Merkezi',
+      'Girisimcilik ve Kulucka Merkezi',
+      'Entrepreneurship and Incubation Center',
+    ],
+  ),
+  CampusLocationData(
+    id: 20,
+    displayName: 'Treatment Plant',
+    building: 'Treatment Plant',
+    floor: '1',
+    room: 'Operations Room',
+    x: 0.184,
+    y: 0.275,
+    aliases: ['Arıtma Tesisi', 'Aritma Tesisi', 'Treatment Plant'],
+  ),
+  CampusLocationData(
+    id: 21,
+    displayName: 'Sports Center',
+    building: 'Sports Center',
+    floor: '1',
+    room: 'Court A',
+    x: 0.218,
+    y: 0.415,
+    aliases: [
+      'Spor Merkezi',
+      'Sports Center',
+      'Indoor Sports Complex',
+    ],
+  ),
+  CampusLocationData(
+    id: 22,
+    displayName: 'Tennis Court',
+    building: 'Tennis Court',
+    floor: 'Outdoor',
+    room: 'Court',
+    x: 0.205,
+    y: 0.226,
+    aliases: ['Kapalı Tenis Kortu', 'Kapali Tenis Kortu', 'Tennis Court'],
+  ),
+  CampusLocationData(
+    id: 23,
+    displayName: 'Football Field',
+    building: 'Football Field',
+    floor: 'Outdoor',
+    room: 'Field',
+    x: 0.376,
+    y: 0.359,
+    aliases: ['Futbol Sahası', 'Futbol Sahasi', 'Football Field'],
+  ),
+  CampusLocationData(
+    id: 24,
+    displayName: 'Faculty Housing',
+    building: 'Faculty Housing',
+    floor: 'Ground',
+    room: 'Common Area',
+    x: 0.488,
+    y: 0.762,
+    aliases: ['Lojmanlar', 'Faculty Housing'],
+  ),
+  CampusLocationData(
+    id: 25,
+    displayName: 'Student Dormitories',
+    building: 'Student Dormitories',
+    floor: 'Ground',
+    room: 'Common Hall',
+    x: 0.492,
+    y: 0.500,
+    aliases: [
+      'Öğrenci Yurtları',
+      'Ogrenci Yurtlari',
+      'Student Dormitories',
+      'Dormitories',
+    ],
+  ),
 ];
 
-const Map<String, Map<String, String>> kCampusLocationDetails = {
-  '1 · Administration Building': {
-    'building': 'Administration Building',
-    'floor': '1',
-    'room': 'Main Hall',
-    'label': '1 · Administration Building',
-  },
-  '2 · School of Languages': {
-    'building': 'School of Languages',
-    'floor': '1',
-    'room': 'Seminar Hall',
-    'label': '2 · School of Languages',
-  },
-  '3 · Sabancı Business School': {
-    'building': 'Sabancı Business School',
-    'floor': '1',
-    'room': 'Lecture Hall',
-    'label': '3 · Sabancı Business School',
-  },
-  '4 · Faculty of Engineering and Natural Sciences': {
-    'building': 'Faculty of Engineering and Natural Sciences',
-    'floor': 'B',
-    'room': '3',
-    'label': '4 · Faculty of Engineering and Natural Sciences',
-  },
-  '5 · Faculty of Arts and Social Sciences': {
-    'building': 'Faculty of Arts and Social Sciences',
-    'floor': '1',
-    'room': 'A1',
-    'label': '5 · Faculty of Arts and Social Sciences',
-  },
-  '6 · Art Studios': {
-    'building': 'Art Studios',
-    'floor': '1',
-    'room': 'Studio A',
-    'label': '6 · Art Studios',
-  },
-  '7 · Information Center': {
-    'building': 'Information Center',
-    'floor': '1',
-    'room': 'Seminar Room',
-    'label': '7 · Information Center',
-  },
-  '8 · SUNUM': {
-    'building': 'SUNUM',
-    'floor': '1',
-    'room': 'Conference Room',
-    'label': '8 · SUNUM',
-  },
-  '9 · Main Gate and Security': {
-    'building': 'Main Gate and Security',
-    'floor': 'Outdoor',
-    'room': 'Entrance',
-    'label': '9 · Main Gate and Security',
-  },
-  '10 · University Center - Cafeteria': {
-    'building': 'University Center',
-    'floor': '1',
-    'room': 'Cafeteria Hall',
-    'label': '10 · University Center - Cafeteria',
-  },
-  '11 · Cinema Hall': {
-    'building': 'Cinema Hall',
-    'floor': '1',
-    'room': 'Main Hall',
-    'label': '11 · Cinema Hall',
-  },
-  '12 · Central Plant': {
-    'building': 'Central Plant',
-    'floor': '1',
-    'room': 'Meeting Room',
-    'label': '12 · Central Plant',
-  },
-  '13 · Performing Arts Center (SGM)': {
-    'building': 'Performing Arts Center (SGM)',
-    'floor': '1',
-    'room': 'Main Stage',
-    'label': '13 · Performing Arts Center (SGM)',
-  },
-  '14 · Amphitheater': {
-    'building': 'Amphitheater',
-    'floor': 'Outdoor',
-    'room': 'Stage Area',
-    'label': '14 · Amphitheater',
-  },
-  '15 · President\'s House': {
-    'building': 'President\'s House',
-    'floor': '1',
-    'room': 'Reception Hall',
-    'label': '15 · President\'s House',
-  },
-  '16 · Health Center and Social Services': {
-    'building': 'Health Center and Social Services',
-    'floor': '1',
-    'room': 'Conference Room',
-    'label': '16 · Health Center and Social Services',
-  },
-  '17 · Nursery School': {
-    'building': 'Nursery School',
-    'floor': 'Ground',
-    'room': 'Activity Hall',
-    'label': '17 · Nursery School',
-  },
-  '18 · Student Clubs Buildings': {
-    'building': 'Student Clubs Buildings',
-    'floor': '1',
-    'room': 'Event Room',
-    'label': '18 · Student Clubs Buildings',
-  },
-  '19 · Entrepreneurship and Incubation Center': {
-    'building': 'Entrepreneurship and Incubation Center',
-    'floor': '1',
-    'room': 'Workshop Hall',
-    'label': '19 · Entrepreneurship and Incubation Center',
-  },
-  '20 · Treatment Plant': {
-    'building': 'Treatment Plant',
-    'floor': '1',
-    'room': 'Operations Room',
-    'label': '20 · Treatment Plant',
-  },
-  '21 · Sports Center': {
-    'building': 'Sports Center',
-    'floor': '1',
-    'room': 'Court A',
-    'label': '21 · Sports Center',
-  },
-  '22 · Tennis Court': {
-    'building': 'Tennis Court',
-    'floor': 'Outdoor',
-    'room': 'Court',
-    'label': '22 · Tennis Court',
-  },
-  '23 · Football Field': {
-    'building': 'Football Field',
-    'floor': 'Outdoor',
-    'room': 'Field',
-    'label': '23 · Football Field',
-  },
-  '24 · Faculty Housing': {
-    'building': 'Faculty Housing',
-    'floor': 'Ground',
-    'room': 'Common Area',
-    'label': '24 · Faculty Housing',
-  },
-  '25 · Student Dormitories': {
-    'building': 'Student Dormitories',
-    'floor': 'Ground',
-    'room': 'Common Hall',
-    'label': '25 · Student Dormitories',
-  },
-};
+final List<String> kCampusLocations = List<String>.unmodifiable(
+  kCampusMapLocations.map((location) => location.label),
+);
 
-const Map<String, String> kLegacyLocationAliases = {
-  'Engineering Hall B3': '4 · Faculty of Engineering and Natural Sciences',
-  'Student Center Auditorium': '13 · Performing Arts Center (SGM)',
-  'Main Conference Center': '10 · University Center - Cafeteria',
-  'Indoor Sports Complex': '21 · Sports Center',
-  'Lecture Hall A1': '5 · Faculty of Arts and Social Sciences',
-  'Main Lawn': '10 · University Center - Cafeteria',
-  'Student Center Courtyard': '10 · University Center - Cafeteria',
-  'Faculty of Engineering and Natural Sciences':
-      '4 · Faculty of Engineering and Natural Sciences',
-  'Performing Arts Center (SGM)': '13 · Performing Arts Center (SGM)',
-  'Student Clubs Buildings': '18 · Student Clubs Buildings',
-  'University Center - Cafeteria': '10 · University Center - Cafeteria',
-  'Cinema Hall': '11 · Cinema Hall',
-  'Sports Center': '21 · Sports Center',
-  'Tennis Court': '22 · Tennis Court',
-  'Football Field': '23 · Football Field',
-  'Art Studios': '6 · Art Studios',
-  'Information Center': '7 · Information Center',
-  'Health Center and Social Services': '16 · Health Center and Social Services',
-  'Student Dormitories': '25 · Student Dormitories',
-  'Library Room 204': '7 · Information Center',
-  'Main Gate': '9 · Main Gate and Security',
-  'Meet at Main Gate': '9 · Main Gate and Security',
-  'Central Campus Green': '14 · Amphitheater',
-};
+final Map<String, CampusLocationData> kCampusLocationLookup =
+    Map<String, CampusLocationData>.unmodifiable({
+      for (final location in kCampusMapLocations) location.label: location,
+    });
+
+final Map<String, Map<String, String>> kCampusLocationDetails =
+    Map<String, Map<String, String>>.unmodifiable({
+      for (final location in kCampusMapLocations)
+        location.label: <String, String>{
+          'building': location.building,
+          'floor': location.floor,
+          'room': location.room,
+          'label': location.label,
+        },
+    });
+
+final Map<String, String> kLegacyLocationAliases =
+    Map<String, String>.unmodifiable(_buildCampusLocationAliasMap());
+
+String normalizeCampusLocation(String value) {
+  final trimmed = value.trim();
+  if (trimmed.isEmpty) {
+    return trimmed;
+  }
+  return kLegacyLocationAliases[_normalizeCampusLocationKey(trimmed)] ?? trimmed;
+}
+
+CampusLocationData? findCampusLocation(String? value) {
+  if (value == null || value.trim().isEmpty) {
+    return null;
+  }
+  return kCampusLocationLookup[normalizeCampusLocation(value)];
+}
+
+Map<String, String> _buildCampusLocationAliasMap() {
+  final aliases = <String, String>{};
+  for (final location in kCampusMapLocations) {
+    aliases[_normalizeCampusLocationKey(location.label)] = location.label;
+    aliases[_normalizeCampusLocationKey(location.displayName)] = location.label;
+    aliases[_normalizeCampusLocationKey(location.building)] = location.label;
+    for (final alias in location.aliases) {
+      aliases[_normalizeCampusLocationKey(alias)] = location.label;
+    }
+  }
+  return aliases;
+}
+
+String _normalizeCampusLocationKey(String value) {
+  return value.trim().toLowerCase();
+}
 
 const List<String> kDepartments = [
   'Computer Science',
@@ -234,161 +428,24 @@ const List<String> kDepartments = [
   'Molecular Biology',
 ];
 
-final Map<String, User> kDemoSeeds = {
-  'student@sabanciuniv.edu': const User(
-      role: 'student',
-      firstName: 'Emir',
-      lastName: 'Mirza',
-      dept: 'Computer Science'),
-  'cssociety@sabanciuniv.edu': const User(
-      role: 'admin',
-      firstName: 'CS',
-      lastName: 'Society',
-      dept: 'Club Administrator',
-      clubName: 'CS Society'),
+final Map<String, AppUser> kDemoSeeds = {
+  'student@sabanciuniv.edu': AppUser(
+    uid: 'seed_student',
+    email: 'student@sabanciuniv.edu',
+    role: 'student',
+    firstName: 'Emir',
+    lastName: 'Mirza',
+    department: 'Computer Science',
+    createdAt: DateTime(2026, 1, 1),
+  ),
+  'cssociety@sabanciuniv.edu': AppUser(
+    uid: 'seed_cssociety',
+    email: 'cssociety@sabanciuniv.edu',
+    role: 'admin',
+    firstName: 'CS',
+    lastName: 'Society',
+    department: 'Club Administrator',
+    clubName: 'CS Society',
+    createdAt: DateTime(2026, 1, 1),
+  ),
 };
-
-List<Event> buildEventList() => [
-      Event(
-        id: 1,
-        title: 'Spring Hackathon 2026',
-        club: 'CS Society',
-        clubId: 'cssociety',
-        date: 'Apr 12',
-        time: '09:00',
-        loc: '4 · Faculty of Engineering and Natural Sciences',
-        cat: 'Academic',
-        desc:
-            '48-hour coding marathon. Build innovative solutions with your team. Prizes for top 3 teams. Food and drinks provided throughout.',
-        rsvp: 142,
-        saved: false,
-        building: 'Faculty of Engineering and Natural Sciences',
-        floor: 'B',
-        room: '3',
-        posterUrl: 'assets/images/poster_datamind.jpg',
-      ),
-      Event(
-        id: 2,
-        title: 'Open Mic Night',
-        club: 'Music Club',
-        clubId: 'music',
-        date: 'Apr 10',
-        time: '19:30',
-        loc: '13 · Performing Arts Center (SGM)',
-        cat: 'Arts',
-        desc:
-            'Show off your talent or enjoy the performances. Sign-ups at the door. All genres welcome.',
-        rsvp: 89,
-        saved: true,
-        building: 'Performing Arts Center (SGM)',
-        floor: '1',
-        room: 'Auditorium',
-        posterUrl: 'assets/images/poster_openmic_microphone.png',
-      ),
-      Event(
-        id: 3,
-        title: 'Career Fair: Tech',
-        club: 'Career Office',
-        clubId: 'career',
-        date: 'Apr 15',
-        time: '10:00',
-        loc: '10 · University Center - Cafeteria',
-        cat: 'Career',
-        desc:
-            'Meet recruiters from top tech companies. Bring your resume and dress smart casual.',
-        rsvp: 310,
-        saved: false,
-        building: 'University Center - Cafeteria',
-        floor: '1',
-        room: 'Main Hall',
-        posterUrl: 'assets/images/poster_networking_fair.jpg',
-      ),
-      Event(
-        id: 4,
-        title: '5v5 Basketball',
-        club: 'Sports Union',
-        clubId: 'sports',
-        date: 'Apr 18',
-        time: '14:00',
-        loc: '21 · Sports Center',
-        cat: 'Sports',
-        desc:
-            'Register your team of 5. Double elimination bracket. Trophies for champions.',
-        rsvp: 64,
-        saved: true,
-        building: 'Sports Center',
-        floor: '1',
-        room: 'Court A',
-      ),
-      Event(
-        id: 5,
-        title: 'AI & Ethics Panel',
-        club: 'Philosophy Society',
-        clubId: 'philosophy',
-        date: 'Apr 20',
-        time: '16:00',
-        loc: '5 · Faculty of Arts and Social Sciences',
-        cat: 'Academic',
-        desc:
-            'Faculty-led discussion on the ethical implications of generative AI in academic and public life.',
-        rsvp: 56,
-        saved: false,
-        building: 'Faculty of Arts and Social Sciences',
-        floor: 'A',
-        room: '1',
-        posterUrl: 'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=800&h=450&fit=crop',
-      ),
-      Event(
-        id: 6,
-        title: 'Spring Picnic & BBQ',
-        club: 'Student Government',
-        clubId: 'stugovt',
-        date: 'Apr 22',
-        time: '12:00',
-        loc: '14 · Amphitheater',
-        cat: 'Social',
-        desc:
-            'Free food, lawn games, and live DJ. The perfect study break before finals.',
-        rsvp: 230,
-        saved: false,
-        building: 'Amphitheater',
-        floor: '—',
-        room: 'Outdoor Lawn',
-        posterUrl: 'assets/images/poster_menu.jpg',
-      ),
-      Event(
-        id: 7,
-        title: 'Photography Walk',
-        club: 'Photo Club',
-        clubId: 'photo',
-        date: 'Apr 14',
-        time: '15:00',
-        loc: '9 · Main Gate and Security',
-        cat: 'Arts',
-        desc:
-            'Golden hour campus walk. Bring any camera. Best shots featured on Instagram.',
-        rsvp: 38,
-        saved: false,
-        building: 'Main Gate and Security',
-        floor: '—',
-        room: '—',
-      ),
-      Event(
-        id: 8,
-        title: 'Resume Workshop',
-        club: 'Career Office',
-        clubId: 'career',
-        date: 'Apr 11',
-        time: '13:00',
-        loc: '7 · Information Center',
-        cat: 'Career',
-        desc:
-            'One-on-one resume reviews with industry mentors. Limited spots available.',
-        rsvp: 45,
-        saved: true,
-        building: 'Information Center',
-        floor: '2',
-        room: '204',
-        posterUrl: 'assets/images/poster_if100_workshop.jpg',
-      ),
-    ];
