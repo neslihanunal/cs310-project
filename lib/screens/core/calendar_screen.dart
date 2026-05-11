@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-import '../../app_state.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/event_provider.dart';
 import '../../utils/app_colors.dart';
 import '../../utils/routes.dart';
 import '../../utils/text_styles.dart';
@@ -21,31 +23,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     super.initState();
     final now = DateTime.now();
     _selectedDate = DateTime(now.year, now.month, now.day);
-  }
-
-  DateTime? _parseEventDate(String value) {
-    final parts = value.split(' ');
-    if (parts.length != 2) return null;
-
-    const months = <String, int>{
-      'Jan': 1,
-      'Feb': 2,
-      'Mar': 3,
-      'Apr': 4,
-      'May': 5,
-      'Jun': 6,
-      'Jul': 7,
-      'Aug': 8,
-      'Sep': 9,
-      'Oct': 10,
-      'Nov': 11,
-      'Dec': 12,
-    };
-
-    final month = months[parts[0]];
-    final day = int.tryParse(parts[1]);
-    if (month == null || day == null) return null;
-    return DateTime(DateTime.now().year, month, day);
   }
 
   Future<void> _pickDate() async {
@@ -93,17 +70,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final state = AppStateProvider.of(context);
-    final role = state.role;
-    final dayEvents = state.events.where((e) {
-      if (e.deleted) return false;
-      final eventDate = _parseEventDate(e.date);
-      return eventDate != null &&
-          eventDate.year == _selectedDate.year &&
-          eventDate.month == _selectedDate.month &&
-          eventDate.day == _selectedDate.day;
-    }).toList()
-      ..sort((a, b) => a.time.compareTo(b.time));
+    final authProvider = context.watch<AuthProvider>();
+    final eventProvider = context.watch<EventProvider>();
+    final role = authProvider.role;
+    final dayEvents = eventProvider.eventsForDate(_selectedDate);
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -117,8 +87,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('Calendar', style: AppTextStyles.screenTitle()),
-                  Text('Choose any date to see scheduled events',
-                      style: AppTextStyles.caption()),
+                  Text(
+                    'Choose any date to see scheduled events',
+                    style: AppTextStyles.caption(),
+                  ),
                 ],
               ),
             ),
@@ -129,7 +101,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   Expanded(
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 12),
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.surface,
                         borderRadius: BorderRadius.circular(10),
@@ -137,14 +111,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.calendar_today_outlined,
-                              color: AppColors.accent, size: 14),
+                          Icon(
+                            Icons.calendar_today_outlined,
+                            color: AppColors.accent,
+                            size: 14,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               _headerLabel(_selectedDate),
-                              style: AppTextStyles.body(13,
-                                  weight: FontWeight.w600),
+                              style: AppTextStyles.body(
+                                13,
+                                weight: FontWeight.w600,
+                              ),
                             ),
                           ),
                         ],
@@ -156,15 +135,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     onTap: _pickDate,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 12),
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.accent,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
                         'Pick Date',
-                        style: AppTextStyles.body(12,
-                            color: AppColors.bg, weight: FontWeight.w600),
+                        style: AppTextStyles.body(
+                          12,
+                          color: AppColors.bg,
+                          weight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ),
@@ -188,26 +172,35 @@ class _CalendarScreenState extends State<CalendarScreen> {
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.event_busy_outlined,
-                                      color: AppColors.textMuted, size: 30),
+                                  Icon(
+                                    Icons.event_busy_outlined,
+                                    color: AppColors.textMuted,
+                                    size: 30,
+                                  ),
                                   const SizedBox(height: 12),
-                                  Text('No events on this date',
-                                      style: AppTextStyles.body(12,
-                                          color: AppColors.textDim)),
+                                  Text(
+                                    'No events on this date',
+                                    style: AppTextStyles.body(
+                                      12,
+                                      color: AppColors.textDim,
+                                    ),
+                                  ),
                                 ],
                               ),
                             )
                           : ListView.builder(
                               itemCount: dayEvents.length,
-                              itemBuilder: (_, i) {
-                                final e = dayEvents[i];
-                                final c = AppColors
-                                    .postit[e.id % AppColors.postit.length];
+                              itemBuilder: (_, index) {
+                                final event = dayEvents[index];
+                                final colors = AppColors.postit[
+                                    event.colorSeed % AppColors.postit.length];
                                 return GestureDetector(
                                   onTap: () {
-                                    state.selectEvent(e);
+                                    eventProvider.selectEvent(event);
                                     Navigator.pushNamed(
-                                        context, AppRoutes.eventDetail);
+                                      context,
+                                      AppRoutes.eventDetail,
+                                    );
                                   },
                                   child: Container(
                                     margin: const EdgeInsets.only(bottom: 8),
@@ -215,8 +208,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                     decoration: BoxDecoration(
                                       color: AppColors.surface,
                                       borderRadius: BorderRadius.circular(8),
-                                      border:
-                                          Border.all(color: AppColors.border),
+                                      border: Border.all(color: AppColors.border),
                                     ),
                                     child: Row(
                                       children: [
@@ -224,7 +216,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                           width: 3,
                                           height: 34,
                                           decoration: BoxDecoration(
-                                            color: c.pin,
+                                            color: colors.pin,
                                             borderRadius:
                                                 BorderRadius.circular(2),
                                           ),
@@ -235,20 +227,31 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                             children: [
-                                              Text(e.title,
-                                                  style: AppTextStyles.body(13,
-                                                      weight: FontWeight.w500)),
+                                              Text(
+                                                event.title,
+                                                style: AppTextStyles.body(
+                                                  13,
+                                                  weight: FontWeight.w500,
+                                                ),
+                                              ),
                                               const SizedBox(height: 3),
-                                              Text('${e.time} · ${e.loc}',
-                                                  style: AppTextStyles.caption(
-                                                      size: 10)),
+                                              Text(
+                                                '${event.time} · ${event.loc}',
+                                                style: AppTextStyles.caption(
+                                                  size: 10,
+                                                ),
+                                              ),
                                             ],
                                           ),
                                         ),
-                                        Text(e.time,
-                                            style: AppTextStyles.body(10,
-                                                color: c.pin,
-                                                weight: FontWeight.w600)),
+                                        Text(
+                                          event.time,
+                                          style: AppTextStyles.body(
+                                            10,
+                                            color: colors.pin,
+                                            weight: FontWeight.w600,
+                                          ),
+                                        ),
                                       ],
                                     ),
                                   ),
@@ -261,9 +264,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
               ),
             ),
             BottomNav(
-                active: AppRoutes.calendar,
-                role: role,
-                onNav: (r) => Navigator.pushReplacementNamed(context, r)),
+              active: AppRoutes.calendar,
+              role: role,
+              onNav: (route) => Navigator.pushReplacementNamed(context, route),
+            ),
           ],
         ),
       ),
