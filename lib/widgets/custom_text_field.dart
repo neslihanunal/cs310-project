@@ -8,6 +8,7 @@ class CustomTextField extends StatelessWidget {
   final TextEditingController? controller;
   final ValueChanged<String>? onChanged;
   final Widget? prefixIcon;
+  final Widget? suffixIcon;
   final bool obscureText;
   final TextInputType? keyboardType;
   final int maxLines;
@@ -22,6 +23,7 @@ class CustomTextField extends StatelessWidget {
     this.controller,
     this.onChanged,
     this.prefixIcon,
+    this.suffixIcon,
     this.obscureText = false,
     this.keyboardType,
     this.maxLines = 1,
@@ -54,6 +56,7 @@ class CustomTextField extends StatelessWidget {
             hintText: placeholder,
             hintStyle: AppTextStyles.body(13, color: AppColors.textDim),
             prefixIcon: prefixIcon,
+            suffixIcon: suffixIcon,
             prefixIconColor: AppColors.textDim,
             filled: true,
             fillColor: AppColors.surfaceAlt,

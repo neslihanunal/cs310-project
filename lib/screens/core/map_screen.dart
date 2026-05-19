@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-import '../../app_state.dart';
 import '../../models/event_model.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/event_provider.dart';
 import '../../utils/app_colors.dart';
 import '../../utils/dummy_data.dart';
 import '../../utils/routes.dart';
@@ -19,36 +21,7 @@ class _MapScreenState extends State<MapScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _pulseController;
   String? _highlightedLocation;
-  int? _highlightedEventId;
-
-  final Map<String, _Marker> _buildingMarkers = const {
-    '1 · Administration Building': _Marker(x: 0.276, y: 0.549),
-    '2 · School of Languages': _Marker(x: 0.323, y: 0.546),
-    '3 · Sabancı Business School': _Marker(x: 0.374, y: 0.525),
-    '4 · Faculty of Engineering and Natural Sciences':
-        _Marker(x: 0.397, y: 0.622),
-    '5 · Faculty of Arts and Social Sciences': _Marker(x: 0.345, y: 0.645),
-    '6 · Art Studios': _Marker(x: 0.367, y: 0.728),
-    '7 · Information Center': _Marker(x: 0.309, y: 0.659),
-    '8 · SUNUM': _Marker(x: 0.423, y: 0.788),
-    '9 · Main Gate and Security': _Marker(x: 0.164, y: 0.745),
-    '10 · University Center - Cafeteria': _Marker(x: 0.427, y: 0.579),
-    '11 · Cinema Hall': _Marker(x: 0.392, y: 0.528),
-    '12 · Central Plant': _Marker(x: 0.469, y: 0.869),
-    '13 · Performing Arts Center (SGM)': _Marker(x: 0.212, y: 0.482),
-    '14 · Amphitheater': _Marker(x: 0.392, y: 0.457),
-    '15 · President\'s House': _Marker(x: 0.537, y: 0.513),
-    '16 · Health Center and Social Services': _Marker(x: 0.507, y: 0.550),
-    '17 · Nursery School': _Marker(x: 0.482, y: 0.714),
-    '18 · Student Clubs Buildings': _Marker(x: 0.454, y: 0.814),
-    '19 · Entrepreneurship and Incubation Center': _Marker(x: 0.228, y: 0.313),
-    '20 · Treatment Plant': _Marker(x: 0.179, y: 0.288),
-    '21 · Sports Center': _Marker(x: 0.212, y: 0.419),
-    '22 · Tennis Court': _Marker(x: 0.198, y: 0.240),
-    '23 · Football Field': _Marker(x: 0.364, y: 0.360),
-    '24 · Faculty Housing': _Marker(x: 0.414, y: 0.705),
-    '25 · Student Dormitories': _Marker(x: 0.462, y: 0.497),
-  };
+  String? _highlightedEventId;
 
   @override
   void initState() {
@@ -57,7 +30,9 @@ class _MapScreenState extends State<MapScreen>
       vsync: this,
       duration: const Duration(milliseconds: 650),
     )..addListener(() {
-        if (mounted) setState(() {});
+        if (mounted) {
+          setState(() {});
+        }
       });
   }
 
@@ -68,18 +43,14 @@ class _MapScreenState extends State<MapScreen>
   }
 
   String _normalizedLocation(String value) {
-    return kLegacyLocationAliases[value] ?? value;
-  }
-
-  String _locationNumber(String value) {
-    final normalized = _normalizedLocation(value);
-    final parts = normalized.split('·');
-    return parts.isNotEmpty ? parts.first.trim() : normalized;
+    return normalizeCampusLocation(value);
   }
 
   void _highlightLocation(String location) {
     final normalized = _normalizedLocation(location);
-    if (_buildingMarkers[normalized] == null) return;
+    if (findCampusLocation(normalized) == null) {
+      return;
+    }
     setState(() => _highlightedLocation = normalized);
     _pulseController.forward(from: 0);
   }
@@ -91,12 +62,14 @@ class _MapScreenState extends State<MapScreen>
 
   double _scaleFor(String location) {
     final normalized = _normalizedLocation(location);
-    if (_highlightedLocation != normalized) return 1;
-    final t = _pulseController.value;
-    if (t <= 0.5) {
-      return 1 + (0.3 * (t / 0.5));
+    if (_highlightedLocation != normalized) {
+      return 1;
     }
-    return 1.3 - (0.3 * ((t - 0.5) / 0.5));
+    final progress = _pulseController.value;
+    if (progress <= 0.5) {
+      return 1 + (0.3 * (progress / 0.5));
+    }
+    return 1.3 - (0.3 * ((progress - 0.5) / 0.5));
   }
 
   Color _markerColorFor(String location) {
@@ -106,49 +79,44 @@ class _MapScreenState extends State<MapScreen>
     return const Color(0xFF6F87B2);
   }
 
-  DateTime? _eventDate(String label) {
-    final parts = label.split(' ');
-    if (parts.length != 2) return null;
-    const months = {
-      'Jan': 1,
-      'Feb': 2,
-      'Mar': 3,
-      'Apr': 4,
-      'May': 5,
-      'Jun': 6,
-      'Jul': 7,
-      'Aug': 8,
-      'Sep': 9,
-      'Oct': 10,
-      'Nov': 11,
-      'Dec': 12,
-    };
-    final month = months[parts[0]];
-    final day = int.tryParse(parts[1]);
-    if (month == null || day == null) return null;
-    return DateTime(DateTime.now().year, month, day);
-  }
-
   bool _isWithinNextSevenDays(Event event, DateTime referenceDate) {
-    final eventDate = _eventDate(event.date);
-    if (eventDate == null) return false;
-    final reference =
-        DateTime(referenceDate.year, referenceDate.month, referenceDate.day);
-    final diff = eventDate.difference(reference).inDays;
-    return diff >= 0 && diff <= 7;
+    final eventDate = event.scheduledDate;
+    if (eventDate == null) {
+      return false;
+    }
+    final reference = DateTime(
+      referenceDate.year,
+      referenceDate.month,
+      referenceDate.day,
+    );
+    final difference = eventDate.difference(reference).inDays;
+    return difference >= 0 && difference <= 7;
   }
 
   @override
   Widget build(BuildContext context) {
-    final state = AppStateProvider.of(context);
-    final role = state.role;
-    final referenceDate = state.referenceDate;
-    final upcomingEvents = state
-        .eventsForRole(state.role)
+    final authProvider = context.watch<AuthProvider>();
+    final eventProvider = context.watch<EventProvider>();
+
+    final role = authProvider.role;
+    final referenceDate = eventProvider.referenceDate;
+    final upcomingEvents = eventProvider.activeEvents
         .where((event) => _isWithinNextSevenDays(event, referenceDate))
         .toList()
-      ..sort((a, b) => (_eventDate(a.date) ?? DateTime(2100))
-          .compareTo(_eventDate(b.date) ?? DateTime(2100)));
+      ..sort((a, b) {
+        final firstDate = a.scheduledDate ?? DateTime(2100);
+        final secondDate = b.scheduledDate ?? DateTime(2100);
+        return firstDate.compareTo(secondDate);
+      });
+
+    final selectedEvent = eventProvider.selectedEvent;
+    if (selectedEvent != null && _highlightedEventId == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _highlightEvent(selectedEvent);
+        }
+      });
+    }
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -190,17 +158,17 @@ class _MapScreenState extends State<MapScreen>
                                 Positioned.fill(
                                   child: Image.asset(
                                     'assets/images/campus_map.jpg',
-                                    fit: BoxFit.cover,
+                                    fit: BoxFit.fill,
                                   ),
                                 ),
-                                ..._buildingMarkers.entries.map((entry) {
+                                ...kCampusMapLocations.map((location) {
                                   return _MapLocationMarker(
-                                    marker: entry.value,
+                                    marker: _Marker(x: location.x, y: location.y),
                                     mapWidth: mapWidth,
                                     mapHeight: mapHeight,
-                                    label: _locationNumber(entry.key),
-                                    scale: _scaleFor(entry.key),
-                                    accent: _markerColorFor(entry.key),
+                                    label: location.id.toString(),
+                                    scale: _scaleFor(location.label),
+                                    accent: _markerColorFor(location.label),
                                   );
                                 }),
                               ],
@@ -217,8 +185,10 @@ class _MapScreenState extends State<MapScreen>
               padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
               child: Container(
                 width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(10),
@@ -257,10 +227,10 @@ class _MapScreenState extends State<MapScreen>
               child: ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 itemCount: upcomingEvents.length,
-                itemBuilder: (_, i) {
-                  final event = upcomingEvents[i];
-                  final c =
-                      AppColors.postit[event.id % AppColors.postit.length];
+                itemBuilder: (_, index) {
+                  final event = upcomingEvents[index];
+                  final colors = AppColors.postit[
+                      event.colorSeed % AppColors.postit.length];
                   return GestureDetector(
                     onTap: () => _highlightEvent(event),
                     child: Container(
@@ -274,7 +244,7 @@ class _MapScreenState extends State<MapScreen>
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
                           color: _highlightedEventId == event.id
-                              ? c.pin.withValues(alpha: 0.75)
+                              ? colors.pin.withOpacity(0.75)
                               : AppColors.border,
                         ),
                       ),
@@ -284,7 +254,7 @@ class _MapScreenState extends State<MapScreen>
                             width: 3,
                             height: 28,
                             decoration: BoxDecoration(
-                              color: c.pin,
+                              color: colors.pin,
                               borderRadius: BorderRadius.circular(2),
                             ),
                           ),
@@ -301,7 +271,8 @@ class _MapScreenState extends State<MapScreen>
                                   ),
                                 ),
                                 Text(
-                                  _normalizedLocation(event.loc),
+                                  findCampusLocation(event.loc)?.label ??
+                                      _normalizedLocation(event.loc),
                                   style: AppTextStyles.caption(size: 10),
                                 ),
                               ],
@@ -314,7 +285,7 @@ class _MapScreenState extends State<MapScreen>
                                 event.date,
                                 style: AppTextStyles.body(
                                   10,
-                                  color: c.pin,
+                                  color: colors.pin,
                                   weight: FontWeight.w600,
                                 ),
                               ),
@@ -322,7 +293,7 @@ class _MapScreenState extends State<MapScreen>
                               Icon(
                                 Icons.place_rounded,
                                 size: 16,
-                                color: c.pin,
+                                color: colors.pin,
                               ),
                             ],
                           ),
@@ -346,13 +317,6 @@ class _MapScreenState extends State<MapScreen>
 }
 
 class _MapLocationMarker extends StatelessWidget {
-  final _Marker marker;
-  final double mapWidth;
-  final double mapHeight;
-  final double scale;
-  final String label;
-  final Color accent;
-
   const _MapLocationMarker({
     required this.marker,
     required this.mapWidth,
@@ -361,6 +325,13 @@ class _MapLocationMarker extends StatelessWidget {
     required this.label,
     required this.accent,
   });
+
+  final _Marker marker;
+  final double mapWidth;
+  final double mapHeight;
+  final double scale;
+  final String label;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
@@ -381,7 +352,7 @@ class _MapLocationMarker extends StatelessWidget {
               border: Border.all(color: Colors.white, width: 1.2),
               boxShadow: [
                 BoxShadow(
-                  color: accent.withValues(alpha: 0.35),
+                  color: accent.withOpacity(0.35),
                   blurRadius: 6,
                   spreadRadius: 0.2,
                 ),
@@ -404,8 +375,8 @@ class _MapLocationMarker extends StatelessWidget {
 }
 
 class _Marker {
+  const _Marker({required this.x, required this.y});
+
   final double x;
   final double y;
-
-  const _Marker({required this.x, required this.y});
 }

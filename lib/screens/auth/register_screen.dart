@@ -8,31 +8,37 @@ import '../../utils/text_styles.dart';
 import '../../widgets/custom_text_field.dart';
 import 'splash_screen.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class RegisterScreen extends StatefulWidget {
+  const RegisterScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
+
   String _emailError = '';
   String _passwordError = '';
   bool _passwordVisible = false;
+  bool _confirmPasswordVisible = false;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  Future<void> _login() async {
+  Future<void> _register() async {
     final authProvider = context.read<AuthProvider>();
     final email = _emailController.text.trim().toLowerCase();
     final password = _passwordController.text;
+    final confirmPassword = _confirmPasswordController.text;
 
     if (email.isEmpty) {
       setState(() => _emailError = 'Sabancı email cannot be empty.');
@@ -46,18 +52,24 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _passwordError = 'Password cannot be empty.');
       return;
     }
+    final passwordValidationError =
+        authProvider.validateRegistrationPassword(password);
+    if (passwordValidationError != null) {
+      setState(() => _passwordError = passwordValidationError);
+      return;
+    }
+    if (password != confirmPassword) {
+      setState(() => _passwordError = 'Passwords do not match.');
+      return;
+    }
 
     setState(() {
       _emailError = '';
       _passwordError = '';
     });
-    final didLogin = await authProvider.login(email, password);
 
-    if (!mounted) {
-      return;
-    }
-
-    if (!didLogin) {
+    final didRegister = await authProvider.register(email, password);
+    if (!mounted || !didRegister) {
       return;
     }
 
@@ -68,36 +80,6 @@ class _LoginScreenState extends State<LoginScreen> {
           : authProvider.needsProfile
           ? AppRoutes.onboarding
           : AppRoutes.dashboard,
-    );
-  }
-
-  Future<void> _forgotPassword() async {
-    final authProvider = context.read<AuthProvider>();
-    final email = _emailController.text.trim().toLowerCase();
-
-    if (email.isEmpty) {
-      setState(() => _emailError = 'Sabancı email cannot be empty.');
-      return;
-    }
-    if (!authProvider.isSabanciEmail(email)) {
-      setState(() => _emailError = 'Please use your @sabanciuniv.edu address.');
-      return;
-    }
-
-    setState(() {
-      _emailError = '';
-      _passwordError = '';
-    });
-
-    final didSend = await authProvider.sendPasswordResetEmail(email);
-    if (!mounted || !didSend) {
-      return;
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Password reset email sent. Please check your inbox.'),
-      ),
     );
   }
 
@@ -122,7 +104,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: GestureDetector(
                   onTap: () => Navigator.pushReplacementNamed(
                     context,
-                    AppRoutes.welcome,
+                    AppRoutes.login,
                   ),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 6),
@@ -145,12 +127,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     const AppLogo(size: 24),
                     const SizedBox(height: 12),
                     Text(
-                      'Sign in to CampusBoard',
+                      'Create your account',
                       style: AppTextStyles.heading(22),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Use your Sabancı email and password to continue.',
+                      'Use your Sabancı email and a strong password to get started.',
                       style: AppTextStyles.body(
                         12,
                         color: AppColors.textSec,
@@ -180,7 +162,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(height: 12),
                           CustomTextField(
                             label: 'Password',
-                            placeholder: 'Enter your password',
+                            placeholder: 'Strong password',
                             controller: _passwordController,
                             obscureText: !_passwordVisible,
                             prefixIcon: const Icon(Icons.lock_outline, size: 14),
@@ -203,6 +185,43 @@ class _LoginScreenState extends State<LoginScreen> {
                               setState(() => _passwordError = '');
                             },
                           ),
+                          const SizedBox(height: 12),
+                          CustomTextField(
+                            label: 'Confirm Password',
+                            placeholder: 'Re-enter your password',
+                            controller: _confirmPasswordController,
+                            obscureText: !_confirmPasswordVisible,
+                            prefixIcon: const Icon(Icons.lock_outline, size: 14),
+                            suffixIcon: IconButton(
+                              onPressed: () {
+                                setState(() {
+                                  _confirmPasswordVisible =
+                                      !_confirmPasswordVisible;
+                                });
+                              },
+                              icon: Icon(
+                                _confirmPasswordVisible
+                                    ? Icons.visibility_off_outlined
+                                    : Icons.visibility_outlined,
+                                size: 18,
+                              ),
+                              color: AppColors.textDim,
+                            ),
+                            onChanged: (_) {
+                              authProvider.clearError();
+                              setState(() => _passwordError = '');
+                            },
+                          ),
+                          const SizedBox(height: 8),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              passwordPolicyMessage,
+                              style: AppTextStyles.caption(size: 10).copyWith(
+                                height: 1.5,
+                              ),
+                            ),
+                          ),
                           if (visibleError.isNotEmpty) ...[
                             const SizedBox(height: 8),
                             _ErrorBanner(text: visibleError),
@@ -211,8 +230,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
-                              onPressed:
-                                  authProvider.isLoading ? null : _login,
+                              onPressed: authProvider.isLoading ? null : _register,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.accent,
                                 foregroundColor: AppColors.bg,
@@ -227,8 +245,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                               child: Text(
                                 authProvider.isLoading
-                                    ? 'Signing in…'
-                                    : 'Log in',
+                                    ? 'Creating account…'
+                                    : 'Create account',
                                 style: AppTextStyles.body(
                                   14,
                                   color: AppColors.bg,
@@ -242,26 +260,12 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: TextButton(
                               onPressed: authProvider.isLoading
                                   ? null
-                                  : _forgotPassword,
-                              child: Text(
-                                'Forgot password?',
-                                style: AppTextStyles.body(
-                                  12,
-                                  color: AppColors.textSec,
-                                ),
-                              ),
-                            ),
-                          ),
-                          Center(
-                            child: TextButton(
-                              onPressed: authProvider.isLoading
-                                  ? null
-                                  : () => Navigator.pushNamed(
+                                  : () => Navigator.pushReplacementNamed(
                                         context,
-                                        AppRoutes.register,
+                                        AppRoutes.login,
                                       ),
                               child: Text(
-                                'Create a new account',
+                                'Already have an account? Log in',
                                 style: AppTextStyles.body(
                                   12,
                                   color: AppColors.textSec,
@@ -299,7 +303,7 @@ class _ErrorBanner extends StatelessWidget {
       ),
       child: Text(
         text,
-        style: TextStyle(
+        style: const TextStyle(
           fontSize: 11,
           color: AppColors.danger,
           height: 1.4,

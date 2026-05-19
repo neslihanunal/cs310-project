@@ -13,11 +13,11 @@ class _FaqScreenState extends State<FaqScreen> {
   int? _open;
 
   static const _faqs = [
-    ('Why do I need a @sabanciuniv.edu email?', 'CampusBoard is a closed platform for Sabancı University only. The email verifies you\'re a member without needing a password.'),
-    ('Do I need to verify my email every time I open the app?', 'No. You only verify once on first login, or when you switch to a new device. After that you stay signed in automatically.'),
+    ('Why do I need a @sabanciuniv.edu email?', 'CampusBoard is a closed platform for Sabancı University only. You need your university email to create and access your account.'),
+    ('Do I need to log in every time I open the app?', 'No. Firebase Authentication keeps you signed in on the same device until you log out.'),
     ('Where does my name come from?', 'You enter your first name, last name, and department during the onboarding step right after your first login. You can edit them anytime from Settings → Account & Profile.'),
     ('How do I become a club admin?', 'Admin status is assigned by the CampusBoard team based on official club registration. Contact us via the Feedback page if your club isn\'t listed.'),
-    ('My verification code didn\'t arrive. What do I do?', 'Check your spam folder first. If it\'s still not there after a minute, tap \'Resend code\' on the verification screen. Codes expire after 10 minutes.'),
+    ('I forgot my password. What do I do?', 'CampusBoard currently does not include an in-app password reset screen. If you need to test password reset for the project, trigger it from Firebase Auth tooling or add it as a future enhancement.'),
     ('Is CampusBoard an official Sabancı University app?', 'No. It\'s a student project created for the CS310 Mobile Application Development course and is not affiliated with or endorsed by Sabancı University.'),
     ('Can I add events to my phone\'s calendar?', 'Calendar export is a planned feature. For now, save events in-app and set a reminder from the Notifications settings.'),
   ];

@@ -1,30 +1,35 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:campusboard_app/main.dart';
+import 'package:campusboard_app/services/auth_service.dart';
+import 'package:campusboard_app/services/firestore_service.dart';
+import 'package:campusboard_app/services/local_storage_service.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const CampusBoardApp());
+  testWidgets('CampusBoard splash renders', (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    final localStorageService = await LocalStorageService.create();
+    final firestoreService = FirestoreService(
+      localStorage: localStorageService,
+      firebaseEnabled: false,
+    );
+    final authService = AuthService();
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    await tester.pumpWidget(
+      CampusBoardApp(
+        localStorageService: localStorageService,
+        firestoreService: firestoreService,
+        authService: authService,
+        firebaseEnabled: false,
+      ),
+    );
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sign in to CampusBoard'), findsOneWidget);
+    expect(find.text('Log in'), findsOneWidget);
   });
 }
